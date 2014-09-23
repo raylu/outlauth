@@ -1,0 +1,6 @@
+[submodule "cleancss.git"]
+	path = cleancss.git
+	url = git://github.com/raylu/py-cleancss.git
+[submodule "gevent.git"]
+	path = gevent.git
+	url = git@github.com:surfly/gevent.git

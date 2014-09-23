@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>outlauth</title>
+	<link rel="stylesheet" type="text/css" href="/css/base.css" />
+	<script src="//ajax.googleapis.com/ajax/libs/mootools/1.4.5/mootools.js"></script>
+	{% block js %}{% endblock %}
+	{% block css %}{% endblock %}
+</head>
+<body>
+	<div class="wrapper">
+		<div class="topbar">
+			<div class="title">
+				<a href="/">auth.amarrvictor.net</a>
+			</div>
+			<div class="nav">
+				{% if current_user %}
+					<a href="/logout">logout</a>
+				{% else %}
+					<a href="/login">login</a>
+					<a href="/register">register</a>
+				{% endif %}
+			</div>
+		</div>
+		{% block main %}{% endblock %}
+	</div>
+</body>
+</html>
