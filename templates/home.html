@@ -6,4 +6,11 @@
 
 {% block main %}
 	hi!
+
+	{% if session['user_id'] %}
+		you are logged in as {{ user.username }}
+		<br>
+		{{ user.character.name }}, {{ user.character.parent.name }}, {{ user.character.parent.parent.name }}
+		{% if user.character.parent.parent.parent %}, {{ user.character.parent.parent.parent.name }}{% endif %}
+	{% endif %}
 {% endblock %}

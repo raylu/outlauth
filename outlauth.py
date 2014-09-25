@@ -9,6 +9,7 @@ import cleancss
 import flask
 from flask import request, session
 import gevent.wsgi
+from sqlalchemy import orm
 
 import ccp_pls
 import config
@@ -19,7 +20,13 @@ app.secret_key = config.secret_key
 
 @app.route('/')
 def home():
-	return flask.render_template('home.html')
+	user = None
+	if 'user_id' in session:
+		user = db.session.query(db.User) \
+			.filter(db.User.id==session['user_id']) \
+			.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent')) \
+			.one()
+	return flask.render_template('home.html', user=user)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -98,6 +105,27 @@ def update_db_for_char(char):
 	db.session.merge(db.Entity(
 		id=char['character_id'], type=db.Entity.TYPE_CHAR,
 		name=char['character_name'], parent_id=char['corporation_id']))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+	if request.method == 'GET':
+		return flask.render_template('login.html')
+	else:
+		user =  db.User.login(request.form['username'], request.form['password'])
+		if user:
+			session['user_id'] = user.id
+			return flask.redirect(flask.url_for('home'))
+		else:
+			flask.flash('Invalid username/password combination.')
+			return flask.redirect(flask.url_for('login'))
+
+@app.route('/logout')
+def logout():
+	try:
+		del session['user_id']
+	except KeyError:
+		pass
+	return flask.redirect(flask.url_for('home'))
 
 css_path = os.path.join(os.path.dirname(__file__), 'static', 'css')
 @app.route('/css/<filename>')

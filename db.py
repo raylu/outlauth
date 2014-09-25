@@ -29,7 +29,7 @@ class Entity(Base):
 	name = Column(String(64), nullable=False)
 	parent_id = Column(Integer, ForeignKey('entities.id'))
 
-	parent = relationship('Entity', backref=backref('children', remote_side=[id]))
+	children = relationship('Entity', backref=backref('parent', remote_side=[id]))
 
 	TYPE_CHAR = 1
 	TYPE_CORP = 2
@@ -60,6 +60,18 @@ class User(Base):
 		hashed_hex = binascii.hexlify(hashed).decode()
 		salt_hex = binascii.hexlify(salt).decode()
 		return hashed_hex, salt_hex
+
+	@staticmethod
+	def login(username, password):
+		user = session.query(User).filter(User.username==username).first()
+		if not user:
+			return False
+		hashed, _ = User.hash_pw(password, binascii.unhexlify(user.salt.encode()))
+		if hashed == user.password:
+			return user
+
+	def __repr__(self):
+		return '<User(id=%r, username=%r, character_id=%r)>' % (self.id, self.username, self.character_id)
 
 def init_db():
 	Base.metadata.create_all(bind=engine)
