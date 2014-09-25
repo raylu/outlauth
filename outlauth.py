@@ -90,20 +90,20 @@ def check_api_key(key_id, vcode):
 
 def update_db_for_char(char):
 	db.session.merge(db.Entity(
-		id=char['faction_id'], type=db.Entity.TYPE_FACTION, name=char['faction_name']))
+		id=char['faction_id'], type='faction', name=char['faction_name']))
 	if char['alliance_id']:
 		db.session.merge(db.Entity(
-			id=char['alliance_id'], type=db.Entity.TYPE_ALLIANCE,
+			id=char['alliance_id'], type='alliance',
 			name=char['alliance_name'], parent_id=char['faction_id']))
 		db.session.merge(db.Entity(
-			id=char['corporation_id'], type=db.Entity.TYPE_CORP,
+			id=char['corporation_id'], type='corporation',
 			name=char['corporation_name'], parent_id=char['alliance_id']))
 	else:
 		db.session.merge(db.Entity(
-			id=char['corporation_id'], type=db.Entity.TYPE_CORP,
+			id=char['corporation_id'], type='corporation',
 			name=char['corporation_name'], parent_id=char['faction_id']))
 	db.session.merge(db.Entity(
-		id=char['character_id'], type=db.Entity.TYPE_CHAR,
+		id=char['character_id'], type='character',
 		name=char['character_name'], parent_id=char['corporation_id']))
 
 @app.route('/login', methods=['GET', 'POST'])

@@ -3,7 +3,7 @@ import hashlib
 import os
 
 import sqlalchemy
-from sqlalchemy import Column, ForeignKey, Integer, SmallInteger, String
+from sqlalchemy import Column, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship, backref
 import sqlalchemy.ext.declarative
 
@@ -25,16 +25,11 @@ Base.query = session.query_property()
 class Entity(Base):
 	__tablename__ = 'entities'
 	id = Column(Integer, primary_key=True, autoincrement=False)
-	type = Column(SmallInteger, nullable=False)
+	type = Column(Enum('character', 'corporation', 'alliance', 'faction', name='entity_type'), nullable=False)
 	name = Column(String(64), nullable=False)
 	parent_id = Column(Integer, ForeignKey('entities.id'))
 
 	children = relationship('Entity', backref=backref('parent', remote_side=[id]))
-
-	TYPE_CHAR = 1
-	TYPE_CORP = 2
-	TYPE_ALLIANCE = 3
-	TYPE_FACTION = 4
 
 	def __repr__(self):
 		return '<Entity(id=%r, type=%r, name=%r, parent_id=%r)>' % (self.id, self.type, self.name, self.parent_id)
