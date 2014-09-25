@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block main %}
+
+<h1>register</h1>
+<p>
+	<a href="https://community.eveonline.com/support/api-key/CreatePredefined?accessMask=65405259">
+		create an api key
+	</a>
+	<br>name it whatever you want
+	<br>touch nothing else
+	<br>click submit at the bottom right
+</p>
+<form action="" method="post">
+	<p>
+		<label>key id
+			<input type="text" name="key_id" value="{{ key_id }}">
+		</label>
+		<label>verification code
+			<input type="text" name="vcode" value="{{ vcode }}">
+		</label>
+	</p>
+
+	{% if characters %}
+		<p>
+			{% for char in characters %}
+				<br>
+				<label>
+					<input type="radio" name="character_id" value="{{ char['character_id'] }}"
+						{% if char['faction_id'] != 500003 %}disabled="disabled"{% endif %}>
+					<img src="https://image.eveonline.com/Character/{{ char['character_id'] }}_64.jpg" alt="{{ char['character_name'] }}">
+					{{ char['character_name'] }}, {{ char['corporation_name'] }}
+					{% if char['alliance_id'] %}, {{ char['alliance_name'] }}{% endif %}
+					{% if char['faction_id'] %}, {{ char['faction_name'] }}{% endif %}
+				</label>
+			{% endfor %}
+		</p>
+		
+		<p>
+			<label>username
+				<input type="text" name="username">
+			</label>
+			<br>
+			<label>password
+				<input type="password" name="password">
+			</label>
+			<br>
+			<label>email
+				<input type="text" name="email">
+			</label>
+		</p>
+	{% endif %}
+
+	<input type="submit" name="register" value="register">
+</form>
+
+{% endblock %}
