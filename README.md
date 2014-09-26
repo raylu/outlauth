@@ -1,4 +1,4 @@
-On a Debian(-based) system, install `cython3 python3-dev python3-flask python3-requests python3-sqlalchemy postgresql`
+On a Debian(-based) system, install `cython3 python3-dev python3-flask python3-requests python3-sqlalchemy python3-postgresql python3-greenlet postgresql`
 
 In `pg_hba.conf` (usually at `/etc/postgresql/9.4/main/`), set local access to `trust` (as opposed to the default `peer`)
 
