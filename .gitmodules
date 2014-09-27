@@ -3,4 +3,4 @@
 	url = git://github.com/raylu/py-cleancss.git
 [submodule "gevent.git"]
 	path = gevent.git
-	url = git@github.com:surfly/gevent.git
+	url = git@github.com:Elizafox/gevent.git
