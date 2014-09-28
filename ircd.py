@@ -63,6 +63,7 @@ class User:
 					break
 				raise
 			if not data:
+				self.disconnect()
 				break
 			lines = data.splitlines()
 			for line in lines:
