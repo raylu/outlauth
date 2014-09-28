@@ -38,6 +38,7 @@ class User:
 		self.conn = conn
 		self.addr = addr
 		self.username = username
+		self.channels = []
 
 	@classmethod
 	def parse_username(self, message):
@@ -51,7 +52,13 @@ class User:
 		if DEBUG:
 			print('->', message)
 		message = message + '\r\n'
-		self.conn.sendall(message.encode('utf-8'))
+		try:
+			self.conn.sendall(message.encode('utf-8'))
+		except OSError as e:
+			if e.errno in [errno.EBADF, errno.ECONNRESET]:
+				self.disconnect()
+			else:
+				raise
 
 	def privmsg(self, message):
 		if not self.username:
@@ -75,20 +82,27 @@ class User:
 		self.send_message(':outlauth 311 {0} {0} outlauth * :dude'.format(self.username))
 		self.send_message(':outlauth 318 {0} :End of WHOIS list'.format(self.username))
 
-	def join_room(self, message):
+	def join_channel(self, message):
 		message = message.split(' ')
 		if len(message) > 1:
 			channel_name = message[1]
 			if channel_name not in channels:
-				channels[channel_name] = Channel(channel_name)
-			channel = channels[channel_name]
+				channels[channel_name] = channel = Channel(channel_name)
+			else:
+				channel = channels[channel_name]
+				if channel in self.channels:
+					return
 			channel.add_user(self)
-			names = ' '.join([str(user.username) for user in channel.users])
+			self.channels.append(channel)
+			names = ' '.join((str(user.username) for user in channel.users))
 			self.send_message(':outlauth 353 {0} @ {0} :names'.format(channel.name, names))
 			self.send_message(':outlauth 366 {0} {0} :End of /NAMES list')
 
 	def disconnect(self):
+		for channel in self.channels:
+			channel.remove_user(self)
 		self.conn.close()
+		del users[self.username]
 
 class Channel:
 	def __init__(self, name):
@@ -97,6 +111,9 @@ class Channel:
 
 	def add_user(self, user):
 		self.users.append(user)
+
+	def remove_user(self, user):
+		self.users.remove(user)
 
 	def message(self, user, message):
 		line = ':{} PRIVMSG {} :{}'.format(user.username, self.name, message)
@@ -124,25 +141,29 @@ def run_command(user, cmd, message):
 		user.send_reply(ReplyCodes.MOTD_CONTENT, 'This is the message of the day, bitch')
 		user.send_reply(ReplyCodes.MOTD_END, '*** End of Message of the Day')
 	elif cmd == Commands.QUIT:
-		user.conn.close()
+		user.disconnect()
+		return False
 	elif user.username is not None:
 		if cmd == Commands.MODE:
 			user.set_mode()
 		elif cmd == Commands.WHOIS:
 			user.whois()
 		elif cmd == Commands.JOIN:
-			user.join_room(message)
+			user.join_channel(message)
 		elif cmd == Commands.PRIVMSG:
 			user.privmsg(message)
+	return True
 
 def handle_conn(conn, addr):
 	print('connected by', addr)
 	user = User(conn, addr)
-	while True:
+	keep_going = True
+	while keep_going:
 		try:
 			data = conn.recv(1024)
 		except OSError as e:
 			if e.errno in [errno.EBADF, errno.ECONNRESET]:
+				user.disconnect()
 				break
 			raise
 		if not data:
@@ -153,7 +174,7 @@ def handle_conn(conn, addr):
 			if DEBUG:
 				print('<-', message)
 			cmd = get_command(message)
-			run_command(user, cmd, message)
+			keep_going = run_command(user, cmd, message)
 	print('disconnecting', addr)
 	conn.close()
 
@@ -167,5 +188,5 @@ try:
 		gevent.spawn(handle_conn, conn, addr)
 except KeyboardInterrupt:
 	print('closing all connections')
-	for user in users.values():
+	for user in list(users.values()):
 		user.disconnect()
