@@ -3,6 +3,7 @@
 import gevent.monkey
 gevent.monkey.patch_all()
 
+import errno
 import socket
 
 import gevent
@@ -11,15 +12,15 @@ users = {}
 channels = {}
 
 class Commands:
-    USER = b'USER'
-    NICK = b'NICK'
-    MODE = b'MODE'
-    PING = b'PING'
-    PONG = b'PONG'
-    WHOIS = b'WHOIS'
-    JOIN = b'JOIN'
-    QUIT = b'QUIT'
-    PRIVMSG = b'PRIVMSG'
+    USER = 'USER'
+    NICK = 'NICK'
+    MODE = 'MODE'
+    PING = 'PING'
+    PONG = 'PONG'
+    WHOIS = 'WHOIS'
+    JOIN = 'JOIN'
+    QUIT = 'QUIT'
+    PRIVMSG = 'PRIVMSG'
 
 class ReplyCodes:
     WELCOME = 1
@@ -38,7 +39,7 @@ class User:
 
     @classmethod
     def parse_username(self, message):
-        username = message.split(b' ')[1]
+        username = message.split(' ')[1]
         return username
 
     def _format_message(self, code, message):
@@ -48,7 +49,7 @@ class User:
         self.conn.sendall(bytearray(message + '\r\n', 'utf-8'))
 
     def privmsg(self, message):
-        _, channel_name, message = message.split(b' ')
+        _, channel_name, message = message.split(' ', 2)
         channel = channels[channel_name]
         message = 'PRIVMSG {} :{}'.format(channel_name, message)
         for user in channel.users:
@@ -70,7 +71,7 @@ class User:
         self.send_message(':outlauth 318 {0} :End of WHOIS list'.format(self.username))
 
     def join_room(self, message):
-        message = message.split(b' ')
+        message = message.split(' ')
         if len(message) > 1:
             channel_name = message[1]
             channel_exists = channel_name in channels
@@ -84,6 +85,9 @@ class User:
             self.send_message(':outlauth 353 {0} @ {0} :names'.format(channel.name, names))
             self.send_message(':outlauth 366 {0} {0} :End of /NAMES list')
 
+    def disconnect(self):
+        self.conn.close()
+
 class Channel:
     def __init__(self, name):
         self.name = name
@@ -93,7 +97,7 @@ class Channel:
         self.users.append(user)
 
 def get_command(message):
-    return message.split(b' ')[0]
+    return message.split(' ')[0]
 
 def run_command(user, cmd, message):
     if cmd == Commands.NICK:
@@ -123,22 +127,34 @@ def run_command(user, cmd, message):
             user.privmsg(message)
 
 def handle_conn(conn, addr):
-    print('Connected by', addr)
+    print('connected by', addr)
     user = User(conn, addr)
     while True:
-        data = conn.recv(1024)
+        try:
+            data = conn.recv(1024)
+        except OSError as e:
+            if e.errno == errno.EBADF:
+                break
+            raise
         if not data: break
         print(data)
         messages = data.splitlines()
         for message in messages:
+            message = message.decode('utf-8')
             cmd = get_command(message)
             run_command(user, cmd, message)
+    print('disconnecting', addr)
     conn.close()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(('', 6667))
 s.listen(4)
-while True:
-    conn, addr = s.accept()
-    gevent.spawn(handle_conn, conn, addr)
+try:
+    while True:
+        conn, addr = s.accept()
+        gevent.spawn(handle_conn, conn, addr)
+except KeyboardInterrupt:
+    print('closing all connections')
+    for user in users.values():
+        user.disconnect()
