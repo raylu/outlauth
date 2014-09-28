@@ -13,17 +13,6 @@ channels = {}
 
 DEBUG = True
 
-class Commands:
-	USER = 'USER'
-	NICK = 'NICK'
-	MODE = 'MODE'
-	PING = 'PING'
-	PONG = 'PONG'
-	WHOIS = 'WHOIS'
-	JOIN = 'JOIN'
-	QUIT = 'QUIT'
-	PRIVMSG = 'PRIVMSG'
-
 class RPL:
 	WELCOME = 1
 	YOURHOST = 2
@@ -86,34 +75,13 @@ class User:
 		conn.close()
 
 	def handle_message(self, msg):
-		cmd = msg.command
-		if cmd == Commands.NICK:
-			old_nick = self.nick
-			if old_nick is not None:
-				del users[self.nick]
-			self.nick = msg.target
-			users[self.nick] = self
-			if old_nick is not None:
-				self.send('NICK', source=old_nick)
-		elif cmd == Commands.USER:
-			self.send(RPL.WELCOME, 'Welcome to outlauth')
-			self.send(RPL.YOURHOST, 'Your host is outlauth, running version 0.0')
-			self.send(RPL.CREATED, 'The server was created today')
-			self.send(RPL.MYINFO, 'outlauth 0.0')
-			self.send(RPL.MOTD_START, '*** Message of the day:')
-			self.send(RPL.MOTD_CONTENT, 'This is the message of the day, bitch')
-			self.send(RPL.MOTD_END, '*** End of message of the day')
-		elif cmd == Commands.QUIT:
-			self.disconnect()
-			return False
-		elif cmd == Commands.MODE:
-			self.mode()
-		elif cmd == Commands.WHOIS:
-			self.whois()
-		elif cmd == Commands.JOIN:
-			self.join(msg)
-		elif cmd == Commands.PRIVMSG:
-			self.privmsg(msg)
+		handler = User.handlers.get(msg.command)
+		if handler:
+			handler(self, msg)
+			if msg.command == 'QUIT':
+				return False
+		else:
+			print('unhandled command', cmd)
 		return True
 
 	def send(self, command, *args, target=None, source=None):
@@ -136,11 +104,37 @@ class User:
 			else:
 				raise
 
-	def mode(self):
+	def disconnect(self):
+		for channel in self.channels:
+			channel.remove_user(self)
+		self.conn.close()
+		del users[self.nick]
+
+	# handlers
+
+	def nick(self, msg):
+		old_nick = self.nick
+		if old_nick is not None:
+			del users[self.nick]
+		self.nick = msg.target
+		users[self.nick] = self
+		if old_nick is not None:
+			self.send('NICK', source=old_nick)
+
+	def user(self, msg):
+		self.send(RPL.WELCOME, 'Welcome to outlauth')
+		self.send(RPL.YOURHOST, 'Your host is outlauth, running version 0.0')
+		self.send(RPL.CREATED, 'The server was created today')
+		self.send(RPL.MYINFO, 'outlauth 0.0')
+		self.send(RPL.MOTD_START, '*** Message of the day:')
+		self.send(RPL.MOTD_CONTENT, 'This is the message of the day, bitch')
+		self.send(RPL.MOTD_END, '*** End of message of the day')
+
+	def mode(self, msg):
 		if not self.nick:
 			return
 
-	def whois(self):
+	def whois(self, msg):
 		self.send(RPL.WHOISUSER, self.nick, 'outlauth * :dude')
 		self.send(RPL.ENDOFWHOIS, ':End of WHOIS list')
 
@@ -165,11 +159,18 @@ class User:
 		channel = channels[msg.target]
 		channel.message(self, msg.text)
 
-	def disconnect(self):
-		for channel in self.channels:
-			channel.remove_user(self)
-		self.conn.close()
-		del users[self.nick]
+	def quit(self, msg):
+		self.disconnect()
+
+	handlers = {
+		'NICK': nick,
+		'USER': user,
+		'MODE': mode,
+		'WHOIS': whois,
+		'JOIN': join,
+		'PRIVMSG': privmsg,
+		'QUIT': quit,
+	}
 
 class Channel:
 	def __init__(self, name):
