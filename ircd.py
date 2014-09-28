@@ -49,7 +49,7 @@ class User:
 		self.conn = conn
 		self.addr = addr
 		self.nick = None
-		self.channels = []
+		self.channels = set()
 
 	def handle_conn(self):
 		print('connected by', self.addr)
@@ -107,9 +107,10 @@ class User:
 
 	def disconnect(self):
 		for channel in self.channels:
-			channel.remove_user(self)
+			channel.quit(self)
 		self.conn.close()
-		del users[self.nick]
+		if self.nick is not None:
+			del users[self.nick]
 
 	# handlers
 
@@ -148,17 +149,26 @@ class User:
 			channel = channels[msg.target]
 			if channel in self.channels:
 				return
-		channel.add_user(self)
-		self.channels.append(channel)
+		channel.join(self)
+		self.channels.add(channel)
 		names = ' '.join((str(user.nick) for user in channel.users))
 		self.send(RPL.NAMREPLY, '@', channel.name, names)
 		self.send(RPL.ENDOFNAMES, channel.name, ':End of /NAMES list')
+
+	def part(self, msg):
+		if not self.nick or msg.target not in channels:
+			return
+		channel = channels[msg.target]
+		if channel not in self.channels:
+			return
+		channel.part(self)
+		self.channels.remove(channel)
 
 	def privmsg(self, msg):
 		if not self.nick:
 			return
 		channel = channels[msg.target]
-		channel.message(self, msg.text)
+		channel.privmsg(self, msg.text)
 
 	def quit(self, msg):
 		self.disconnect()
@@ -169,26 +179,44 @@ class User:
 		'MODE': mode,
 		'WHOIS': whois,
 		'JOIN': join,
+		'PART': part,
 		'PRIVMSG': privmsg,
 		'QUIT': quit,
 	}
 
+	def __hash__(self):
+		return hash(self.nick)
+
 class Channel:
 	def __init__(self, name):
 		self.name = name
-		self.users = []
+		self.users = set()
 
-	def add_user(self, user):
-		self.users.append(user)
+	def join(self, user):
+		self.users.add(user)
+		for u in self.users:
+			gevent.spawn(u.send, 'JOIN', target=self.name, source=user.nick)
 
-	def remove_user(self, user):
+	def part(self, user):
+		for u in self.users:
+			gevent.spawn(u.send, 'PART', target=self.name, source=user.nick)
 		self.users.remove(user)
 
-	def message(self, user, text):
+	def quit(self, user):
+		self.users.remove(user)
 		for u in self.users:
 			if user is u:
 				continue
-			u.send('PRIVMSG', text, target=self.name, source=user.nick)
+			gevent.spawn(u.send, 'QUIT', target='', source=user.nick)
+
+	def privmsg(self, user, text):
+		for u in self.users:
+			if user is u:
+				continue
+			gevent.spawn(u.send, 'PRIVMSG', text, target=self.name, source=user.nick)
+
+	def __hash__(self):
+		return hash(self.name)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
