@@ -7,24 +7,33 @@ import socket
 
 import gevent
 
+users = {}
+channels = {}
+
 class Commands:
     USER = b'USER'
+    NICK = b'NICK'
     MODE = b'MODE'
     PING = b'PING'
     PONG = b'PONG'
     WHOIS = b'WHOIS'
     JOIN = b'JOIN'
     QUIT = b'QUIT'
+    PRIVMSG = b'PRIVMSG'
 
 class ReplyCodes:
     WELCOME = 1
+    YOURHOST = 2
+    CREATED = 3
+    MYINFO = 4
     MOTD_CONTENT = 372
     MOTD_START = 375
     MOTD_END = 376
 
 class User:
-    def __init__(self, conn, username):
+    def __init__(self, conn, addr, username=None):
         self.conn = conn
+        self.addr = addr
         self.username = username
 
     @classmethod
@@ -33,10 +42,17 @@ class User:
         return username
 
     def _format_message(self, code, message):
-        return ':outlauth {} {} :{}\r\n'.format(code, self.username, message)
+        return ':outlauth {} {} :{}'.format(code, self.username, message)
 
     def send_message(self, message):
-        self.conn.sendall(bytearray(message, 'utf-8'))
+        self.conn.sendall(bytearray(message + '\r\n', 'utf-8'))
+
+    def privmsg(self, message):
+        _, channel_name, message = message.split(b' ')
+        channel = channels[channel_name]
+        message = 'PRIVMSG {} :{}'.format(channel_name, message)
+        for user in channel.users:
+            user.send_message(message)
 
     def send_notice(self, message):
         message = self._format_message('NOTICE', message)
@@ -46,18 +62,69 @@ class User:
         message = self._format_message(code, message)
         self.send_message(message)
 
-    def respond_to_mode(self):
+    def set_mode(self):
         self.send_message('{0} MODE {0} :+i'.format(self.username))
 
-    def respond_to_whois(self):
-        self.send_message('{0} 318 {0} :+i'.format(self.username))
+    def whois(self):
+        self.send_message(':outlauth 311 {0} {0} outlauth * :dude'.format(self.username))
+        self.send_message(':outlauth 318 {0} :End of WHOIS list'.format(self.username))
+
+    def join_room(self, message):
+        message = message.split(b' ')
+        if len(message) > 1:
+            channel_name = message[1]
+            channel_exists = channel_name in channels
+            if channel_exists:
+                channel = channels[channel_name]
+            else:
+                new_channel = Channel(channel_name)
+                channel = channels[channel_name] = new_channel
+            channel.add_user(self)
+            names = ' '.join([str(user.username) for user in channel.users])
+            self.send_message(':outlauth 353 {0} @ {0} :names'.format(channel.name, names))
+            self.send_message(':outlauth 366 {0} {0} :End of /NAMES list')
+
+class Channel:
+    def __init__(self, name):
+        self.name = name
+        self.users = []
+
+    def add_user(self, user):
+        self.users.append(user)
 
 def get_command(message):
-    return message[0:4]
+    return message.split(b' ')[0]
+
+def run_command(user, cmd, message):
+    if cmd == Commands.NICK:
+        username = User.parse_username(message)
+        user.username = username
+        users[username] = user
+        user.send_notice('*** Nick set to {}'.format(user.username))
+    elif cmd == Commands.USER:
+        user.send_notice('*** Connected')
+        user.send_reply(ReplyCodes.WELCOME, 'Welcome to outlauth')
+        user.send_reply(ReplyCodes.YOURHOST, 'Your host is outlauth, running version 0.0')
+        user.send_reply(ReplyCodes.CREATED, 'The server was created today')
+        user.send_reply(ReplyCodes.MYINFO, 'outlauth 0.0')
+        user.send_reply(ReplyCodes.MOTD_START, '*** Message of the Day:')
+        user.send_reply(ReplyCodes.MOTD_CONTENT, 'This is the message of the day, bitch')
+        user.send_reply(ReplyCodes.MOTD_END, '*** End of Message of the Day')
+    elif cmd == Commands.QUIT:
+        user.conn.close()
+    elif user.username is not None:
+        if cmd == Commands.MODE:
+            user.set_mode()
+        elif cmd == Commands.WHOIS:
+            user.whois()
+        elif cmd == Commands.JOIN:
+            user.join_room(message)
+        elif cmd == Commands.PRIVMSG:
+            user.privmsg(message)
 
 def handle_conn(conn, addr):
     print('Connected by', addr)
-    user = None
+    user = User(conn, addr)
     while True:
         data = conn.recv(1024)
         if not data: break
@@ -65,18 +132,7 @@ def handle_conn(conn, addr):
         messages = data.splitlines()
         for message in messages:
             cmd = get_command(message)
-            if cmd == Commands.USER:
-                username = User.parse_username(message)
-                user = User(conn, username)
-                user.send_notice('*** Connected')
-                user.send_reply(ReplyCodes.WELCOME, 'Welcome to outlauth')
-                user.send_reply(ReplyCodes.MOTD_START, '*** Message of the Day:')
-                user.send_reply(ReplyCodes.MOTD_CONTENT, 'This is the message of the day, bitch')
-                user.send_reply(ReplyCodes.MOTD_END, '*** End of Message of the Day')
-            elif cmd == Commands.MODE:
-                user.respond_to_mode()
-            elif cmd == Commands.WHOIS:
-                user.respond_to_whois()
+            run_command(user, cmd, message)
     conn.close()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
