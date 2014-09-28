@@ -11,6 +11,8 @@ import gevent
 users = {}
 channels = {}
 
+DEBUG = True
+
 class Commands:
 	USER = 'USER'
 	NICK = 'NICK'
@@ -46,14 +48,17 @@ class User:
 		return ':outlauth {} {} :{}'.format(code, self.username, message)
 
 	def send_message(self, message):
-		self.conn.sendall(bytearray(message + '\r\n', 'utf-8'))
+		if DEBUG:
+			print('->', message)
+		message = message + '\r\n'
+		self.conn.sendall(message.encode('utf-8'))
 
 	def privmsg(self, message):
+		if not self.username:
+			return
 		_, channel_name, message = message.split(' ', 2)
 		channel = channels[channel_name]
-		message = 'PRIVMSG {} :{}'.format(channel_name, message)
-		for user in channel.users:
-			user.send_message(message)
+		channel.message(self, message)
 
 	def send_notice(self, message):
 		message = self._format_message('NOTICE', message)
@@ -74,12 +79,9 @@ class User:
 		message = message.split(' ')
 		if len(message) > 1:
 			channel_name = message[1]
-			channel_exists = channel_name in channels
-			if channel_exists:
-				channel = channels[channel_name]
-			else:
-				new_channel = Channel(channel_name)
-				channel = channels[channel_name] = new_channel
+			if channel_name not in channels:
+				channels[channel_name] = Channel(channel_name)
+			channel = channels[channel_name]
 			channel.add_user(self)
 			names = ' '.join([str(user.username) for user in channel.users])
 			self.send_message(':outlauth 353 {0} @ {0} :names'.format(channel.name, names))
@@ -95,6 +97,13 @@ class Channel:
 
 	def add_user(self, user):
 		self.users.append(user)
+
+	def message(self, user, message):
+		line = ':{} PRIVMSG {} :{}'.format(user.username, self.name, message)
+		for u in self.users:
+			if user is u:
+				continue
+			u.send_message(line)
 
 def get_command(message):
 	return message.split(' ')[0]
@@ -133,14 +142,16 @@ def handle_conn(conn, addr):
 		try:
 			data = conn.recv(1024)
 		except OSError as e:
-			if e.errno == errno.EBADF:
+			if e.errno in [errno.EBADF, errno.ECONNRESET]:
 				break
 			raise
-		if not data: break
-		print(data)
+		if not data:
+			break
 		messages = data.splitlines()
 		for message in messages:
 			message = message.decode('utf-8')
+			if DEBUG:
+				print('<-', message)
 			cmd = get_command(message)
 			run_command(user, cmd, message)
 	print('disconnecting', addr)
