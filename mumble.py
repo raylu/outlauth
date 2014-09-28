@@ -4,13 +4,17 @@ import Ice
 Ice.loadSlice('-I/usr/share/Ice/slice', ['/usr/share/slice/Murmur.ice'])
 import Murmur
 
-def ice_auth(obj):
-	return obj.ice_context({'secret': 'ice'})
+import db
 
 class Authenticator(Murmur.ServerAuthenticator):
 	def authenticate(self, name, pw, certificates, certhash, certstrong, current=None):
-		print(name, pw, current)
-		return -2, '', []
+		new_name = ''
+		if not pw:
+			return -1, new_name, []
+		user = db.User.login(name, pw)
+		if not user:
+			return -1, new_name, []
+		return user.id, new_name, ['admin', 'militia', 'I.LAW', 'blue']
 
 	def getInfo(self, id, current=None):
 		return False, {}
@@ -23,6 +27,9 @@ class Authenticator(Murmur.ServerAuthenticator):
 
 	def idToTexture(self, id, corrent=None):
 		return []
+
+def ice_auth(obj):
+	return obj.ice_context({'secret': 'ice'})
 
 ice = Ice.initialize()
 meta = Murmur.MetaPrx.checkedCast(ice.stringToProxy('Meta:tcp -h 127.0.0.1 -p 6502'))
