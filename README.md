@@ -12,6 +12,7 @@ sudo psql
 > create database outlauth;
 > grant all privileges on database outlauth to outlauth;
 sudo invoke-rc.d postgresql restart # for pg_hba.conf change
+cp config.py.example config.py
 
 python3 db.py init
 ./outlauth.py

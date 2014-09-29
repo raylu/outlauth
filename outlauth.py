@@ -108,12 +108,11 @@ def admin():
 			flask.abort(403)
 
 		admins = db.session.query(db.User) \
-		.filter(db.User.user_flag==1) \
-		.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent'))
+		.filter(db.User.user_flag==1)
 
 		non_admins = db.session.query(db.User) \
-		.filter(db.User.user_flag!=1) \
-		.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent'))
+		.filter(db.User.user_flag!=1)
+
 	else:
 		return flask.redirect(flask.url_for('home'))
 
@@ -122,7 +121,6 @@ def admin():
 def get_current_user():
 	user = db.session.query(db.User) \
 	.filter(db.User.id==session['user_id']) \
-	.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent')) \
 	.one()
 
 	return user
@@ -200,7 +198,7 @@ def shutdown_session(exception=None):
 	db.session.remove()
 
 if config.debug:
-	app.run(host='192.168.1.45', port=config.web_port, debug=True)
+	app.run(host=config.web_host, port=config.web_port, debug=True)
 else:
 	http_server = gevent.wsgi.WSGIServer(('', config.web_port), app)
 	http_server.serve_forever()
