@@ -48,6 +48,7 @@ class User:
 	def __init__(self, conn, addr):
 		self.conn = conn
 		self.addr = addr
+		self.last_buf = None
 		self.nick = None
 		self.channels = set()
 
@@ -56,7 +57,7 @@ class User:
 		keep_going = True
 		while keep_going:
 			try:
-				data = self.conn.recv(1024)
+				data = self.conn.recv(4096)
 			except OSError as e:
 				if e.errno in [errno.EBADF, errno.ECONNRESET]:
 					self.disconnect()
@@ -65,15 +66,21 @@ class User:
 			if not data:
 				self.disconnect()
 				break
-			lines = data.splitlines()
-			for line in lines:
-				line = line.decode('utf-8')
+			if self.last_buf is not None:
+				data = self.last_buf + data
+				self.last_buf = None
+			lines = data.split(b'\r\n')
+			for i in range(len(lines) - 1):
+				line = str(lines[i], 'utf-8', 'replace')
 				if DEBUG:
 					print('<-', line)
 				message = ClientMessage(line)
 				keep_going = self.handle_message(message)
+			last = lines[-1]
+			if last:
+				self.last_buf = last
 		print('disconnecting', self.addr)
-		conn.close()
+		self.conn.close()
 
 	def handle_message(self, msg):
 		handler = User.handlers.get(msg.command)
@@ -138,7 +145,7 @@ class User:
 
 	def whois(self, msg):
 		self.send(RPL.WHOISUSER, self.nick, 'outlauth * :dude')
-		self.send(RPL.ENDOFWHOIS, ':End of WHOIS list')
+		self.send(RPL.ENDOFWHOIS, 'End of WHOIS list')
 
 	def join(self, msg):
 		if not self.nick or not msg.target:
@@ -153,7 +160,7 @@ class User:
 		self.channels.add(channel)
 		names = ' '.join((str(user.nick) for user in channel.users))
 		self.send(RPL.NAMREPLY, '@', channel.name, names)
-		self.send(RPL.ENDOFNAMES, channel.name, ':End of /NAMES list')
+		self.send(RPL.ENDOFNAMES, channel.name, 'End of /NAMES list')
 
 	def part(self, msg):
 		if not self.nick or msg.target not in channels:
