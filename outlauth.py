@@ -22,10 +22,7 @@ app.secret_key = config.secret_key
 def home():
 	user = None
 	if 'user_id' in session:
-		user = db.session.query(db.User) \
-			.filter(db.User.id==session['user_id']) \
-			.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent')) \
-			.one()
+		user = get_current_user()
 	return flask.render_template('home.html', user=user)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -66,6 +63,69 @@ def register():
 			session.permanent = True
 			session['user_id'] = user.id
 			return flask.redirect(flask.url_for('home'))
+
+@app.route('/admin/add/<id>')
+def make_admin(id):
+	if 'user_id' in session:
+		user = get_current_user()
+		if user.user_flag != 1:
+			flask.abort(403)
+	else:
+		flask.abort(403)
+	db.session.query(db.User) \
+	.filter(db.User.id==int(id)) \
+	.update({'user_flag': 1})
+
+	db.session.commit()
+	return flask.redirect(flask.url_for('admin'))
+
+@app.route('/admin/remove/<id>')
+def remove_admin(id):
+	if 'user_id' in session:
+		user = get_current_user()
+		if user.user_flag != 1:
+			flask.abort(403)
+	else:
+		flask.abort(403)
+	db.session.query(db.User) \
+	.filter(db.User.id==int(id)) \
+	.update({'user_flag': 0})
+
+	db.session.commit()
+
+	return flask.redirect(flask.url_for('admin'))
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+	admins = None
+	non_admins = None
+	user = None
+
+	if 'user_id' in session:
+		user = get_current_user()
+
+		if user.user_flag != 1:
+			flask.abort(403)
+
+		admins = db.session.query(db.User) \
+		.filter(db.User.user_flag==1) \
+		.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent'))
+
+		non_admins = db.session.query(db.User) \
+		.filter(db.User.user_flag!=1) \
+		.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent'))
+	else:
+		return flask.redirect(flask.url_for('home'))
+
+	return flask.render_template('admin.html', user=user, admins=admins, non_admins=non_admins)
+
+def get_current_user():
+	user = db.session.query(db.User) \
+	.filter(db.User.id==session['user_id']) \
+	.options(orm.joinedload('character').joinedload('parent').joinedload('parent').joinedload('parent')) \
+	.one()
+
+	return user
 
 def check_api_key(key_id, vcode):
 	key_info = ccp_pls.key_info(key_id, vcode)
@@ -140,7 +200,7 @@ def shutdown_session(exception=None):
 	db.session.remove()
 
 if config.debug:
-	app.run(port=config.web_port, debug=True)
+	app.run(host='192.168.1.45', port=config.web_port, debug=True)
 else:
 	http_server = gevent.wsgi.WSGIServer(('', config.web_port), app)
 	http_server.serve_forever()
