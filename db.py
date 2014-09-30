@@ -44,7 +44,7 @@ class User(Base):
 	apikey_id = Column(Integer, nullable=False, unique=True)
 	apikey_vcode = Column(sqlalchemy.types.CHAR(64), nullable=False)
 	character_id = Column(Integer, ForeignKey('entities.id'), nullable=False, unique=True)
-	user_flag = Column(Integer, nullable=False, default=0)
+	flags = Column(Integer, nullable=False, default=0)
 
 	character = relationship('Entity')
 

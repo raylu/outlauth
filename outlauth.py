@@ -68,13 +68,13 @@ def register():
 def make_admin(id):
 	if 'user_id' in session:
 		user = get_current_user()
-		if user.user_flag != 1:
+		if user.flags != 1:
 			flask.abort(403)
 	else:
 		flask.abort(403)
 	db.session.query(db.User) \
 	.filter(db.User.id==int(id)) \
-	.update({'user_flag': 1})
+	.update({'flags': 1})
 
 	db.session.commit()
 	return flask.redirect(flask.url_for('admin'))
@@ -83,19 +83,19 @@ def make_admin(id):
 def remove_admin(id):
 	if 'user_id' in session:
 		user = get_current_user()
-		if user.user_flag != 1:
+		if user.flags != 1:
 			flask.abort(403)
 	else:
 		flask.abort(403)
 	db.session.query(db.User) \
 	.filter(db.User.id==int(id)) \
-	.update({'user_flag': 0})
+	.update({'flags': 0})
 
 	db.session.commit()
 
 	return flask.redirect(flask.url_for('admin'))
 
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/admin', methods=['GET'])
 def admin():
 	admins = None
 	non_admins = None
@@ -104,14 +104,14 @@ def admin():
 	if 'user_id' in session:
 		user = get_current_user()
 
-		if user.user_flag != 1:
+		if user.flags != 1:
 			flask.abort(403)
 
 		admins = db.session.query(db.User) \
-		.filter(db.User.user_flag==1)
+		.filter(db.User.flags==1)
 
 		non_admins = db.session.query(db.User) \
-		.filter(db.User.user_flag!=1)
+		.filter(db.User.flags!=1)
 
 	else:
 		return flask.redirect(flask.url_for('home'))
