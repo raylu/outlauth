@@ -24,16 +24,21 @@ class RPL:
 	WHOISUSER = 311
 	WHOWASUSER = 314
 	ENDOFWHOIS = 318
+	CHANNELMODEIS = 324
 	NAMREPLY = 353
 	ENDOFNAMES = 366
 	ENDOFWHOWAS = 369
 	MOTD_CONTENT = 372
 	MOTD_START = 375
 	MOTD_END = 376
+	NOSUCHCHANNEL = 403
 	WASNOSUCHNICK = 406
 	UNKNOWNCOMMAND = 421
 	NONICKNAMEGIVEN = 431
 	ERRONEUSNICKNAME = 432
+	NOCHANMODES = 477
+	UMODEUNKNOWNFLAG = 501
+	USERSDONTMATCH = 502
 
 class ClientMessage:
 	''' command, target, text '''
@@ -167,8 +172,22 @@ class User:
 		self.send(RPL.MOTD_END, '*** End of message of the day')
 
 	def mode(self, msg):
-		if not self.nick:
+		if not self.nick or not msg.target:
 			return
+		if msg.target.startswith('#'):
+			channel = channels.get(msg.target)
+			if not channel:
+				self.send(RPL.NOSUCHCHANNEL, msg.target, 'No such channel')
+			else:
+				if not msg.text:
+					self.send(RPL.CHANNELMODEIS, channel.name, '+nt')
+				else:
+					self.send(RPL.NOCHANMODES, channel.name, "Channel doesn't support modes")
+		else:
+			if msg.target == self.nick:
+				self.send(RPL.UMODEUNKNOWNFLAG, 'Unknown MODE flag')
+			else:
+				self.send(RPL.USERSDONTMATCH, 'Cannot change mode for other users')
 
 	def whois(self, msg):
 		if not msg.target:
