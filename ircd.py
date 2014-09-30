@@ -200,7 +200,8 @@ class User:
 				return
 		channel.join(self)
 		self.channels.add(channel)
-		names = ' '.join((str(user.nick) for user in channel.users))
+		self.send('JOIN', target=channel.name, source=self.nick)
+		names = ' '.join((user.nick for user in channel.users))
 		self.send(RPL.NAMREPLY, '@', channel.name, names)
 		self.send(RPL.ENDOFNAMES, channel.name, 'End of /NAMES list')
 
@@ -245,6 +246,8 @@ class Channel:
 	def join(self, user):
 		self.users.add(user)
 		for u in self.users:
+			if user is u:
+				continue
 			gevent.spawn(u.send, 'JOIN', target=self.name, source=user.nick)
 
 	def part(self, user):
