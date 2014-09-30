@@ -25,6 +25,9 @@ class RPL:
 	MOTD_CONTENT = 372
 	MOTD_START = 375
 	MOTD_END = 376
+	UNKNOWNCOMMAND = 421
+	NONICKNAMEGIVEN = 431
+	ERRONEUSNICKNAME = 432
 
 
 class ClientMessage:
@@ -34,7 +37,10 @@ class ClientMessage:
 
 		split = line.split(' ', 2) # this is technically wrong, but works for most things
 		self.command = split[0]
-		self.target = split[1]
+		if len(split) > 1:
+			self.target = split[1]
+		else:
+			self.target = None # this shouldn't happen
 		self.text = None
 		if len(split) > 2 and split[2]:
 			self.text = split[2]
@@ -89,7 +95,8 @@ class User:
 			if msg.command == 'QUIT':
 				return False
 		else:
-			print('unhandled command', cmd)
+			print('unhandled command', msg)
+			self.send(RPL.UNKNOWNCOMMAND)
 		return True
 
 	def send(self, command, *args, target=None, source=None):
@@ -122,13 +129,13 @@ class User:
 	# handlers
 
 	def nick(self, msg):
-		old_nick = self.nick
-		if old_nick is not None:
-			del users[self.nick]
-		self.nick = msg.target
-		users[self.nick] = self
-		if old_nick is not None:
-			self.send('NICK', source=old_nick)
+		if not msg.target:
+			self.send(RPL.NONICKNAMEGIVEN)
+		elif self.nick is None:
+			self.nick = msg.target
+			users[self.nick] = self
+		else:
+			self.send(RPL.ERRONEUSNICKNAME, 'You cannot change your nick from your auth username.')
 
 	def user(self, msg):
 		self.send(RPL.WELCOME, 'Welcome to outlauth')
@@ -144,7 +151,9 @@ class User:
 			return
 
 	def whois(self, msg):
-		self.send(RPL.WHOISUSER, self.nick, 'outlauth * :dude')
+		if not msg.target:
+			return
+		self.send(RPL.WHOISUSER, msg.target + '? ? * :?')
 		self.send(RPL.ENDOFWHOIS, 'End of WHOIS list')
 
 	def join(self, msg):
