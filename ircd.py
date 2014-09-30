@@ -23,8 +23,10 @@ class RPL:
 	MYINFO = 4
 	WHOISUSER = 311
 	WHOWASUSER = 314
+	ENDOFWHO = 315
 	ENDOFWHOIS = 318
 	CHANNELMODEIS = 324
+	WHOREPLY = 352
 	NAMREPLY = 353
 	ENDOFNAMES = 366
 	ENDOFWHOWAS = 369
@@ -36,6 +38,7 @@ class RPL:
 	UNKNOWNCOMMAND = 421
 	NONICKNAMEGIVEN = 431
 	ERRONEUSNICKNAME = 432
+	NOTREGISTERED = 451
 	NOCHANMODES = 477
 	UMODEUNKNOWNFLAG = 501
 	USERSDONTMATCH = 502
@@ -113,7 +116,7 @@ class User:
 	def send(self, command, *args, target=None, source=None):
 		if target is None:
 			target = self.nick
-		if args and ' ' in args[-1]:
+		if args and (' ' in args[-1] or args[-1].startswith(':')):
 			args = list(args)
 			args[-1] = ':' + args[-1]
 		line = '%s %s %s' % (command, target, ' '.join(args))
@@ -163,6 +166,9 @@ class User:
 			self.send(RPL.ERRONEUSNICKNAME, 'You cannot change your nick from your auth username.')
 
 	def user(self, msg):
+		if not self.nick:
+			self.send(RPL.NOTREGISTERED, 'You have not registered')
+			return
 		self.send(RPL.WELCOME, 'Welcome to outlauth')
 		self.send(RPL.YOURHOST, 'Your host is outlauth, running version 0.0')
 		self.send(RPL.CREATED, 'The server was created today')
@@ -188,6 +194,18 @@ class User:
 				self.send(RPL.UMODEUNKNOWNFLAG, 'Unknown MODE flag')
 			else:
 				self.send(RPL.USERSDONTMATCH, 'Cannot change mode for other users')
+
+	def who(self, msg):
+		if not msg.target:
+			return
+		channel = channels.get(msg.target)
+		if not channel:
+			self.send(RPL.NOSUCHCHANNEL, msg.target, 'No such channel')
+		else:
+			for user in channel.users:
+				self.send(RPL.WHOREPLY, channel.name, user.user, user.host, 'outlauth', user.nick,
+						'H', '0 ' + user.real_name) # here, hopcount 0
+			self.send(RPL.ENDOFWHO, channel.name, 'End of WHO list')
 
 	def whois(self, msg):
 		if not msg.target:
@@ -248,6 +266,7 @@ class User:
 		'USER': user,
 		'MODE': mode,
 		'WHOIS': whois,
+		'WHO': who,
 		'JOIN': join,
 		'PART': part,
 		'PRIVMSG': privmsg,
