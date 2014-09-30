@@ -67,13 +67,15 @@ class User:
 	def __init__(self, conn, addr):
 		self.conn = conn
 		self.addr = addr
+		self.greenlet = None
 		self.last_buf = None
-		self.nick = self.user = self.host = self.real_name = None
+		self.nick = self.user = self.host = self.real_name = self.source = None
 		self.password = None
 		self.channels = set()
 
 	def handle_conn(self):
 		print('connected by', self.addr)
+		self.greenlet = gevent.getcurrent()
 		keep_going = True
 		while keep_going:
 			try:
@@ -161,6 +163,7 @@ class User:
 			self.user = self.real_name.replace(' ', '_')
 			self.host = user.character.parent.name.replace(' ', '.')
 			self.nick = msg.target
+			self.source = '%s!%s@%s' % (self.nick, self.user, self.host)
 			users[self.nick] = self
 		else:
 			self.send(RPL.ERRONEUSNICKNAME, 'You cannot change your nick from your auth username.')
@@ -237,7 +240,7 @@ class User:
 				return
 		channel.join(self)
 		self.channels.add(channel)
-		self.send('JOIN', target=channel.name, source=self.nick)
+		self.send('JOIN', target=channel.name, source=self.source)
 		names = ' '.join((user.nick for user in channel.users))
 		self.send(RPL.NAMREPLY, '@', channel.name, names)
 		self.send(RPL.ENDOFNAMES, channel.name, 'End of /NAMES list')
@@ -286,11 +289,11 @@ class Channel:
 		for u in self.users:
 			if user is u:
 				continue
-			gevent.spawn(u.send, 'JOIN', target=self.name, source=user.nick)
+			gevent.spawn(u.send, 'JOIN', target=self.name, source=user.source)
 
 	def part(self, user):
 		for u in self.users:
-			gevent.spawn(u.send, 'PART', target=self.name, source=user.nick)
+			gevent.spawn(u.send, 'PART', target=self.name, source=user.source)
 		self.users.remove(user)
 
 	def quit(self, user):
@@ -298,7 +301,7 @@ class Channel:
 		for u in self.users:
 			if user is u:
 				continue
-			gevent.spawn(u.send, 'QUIT', target='', source=user.nick)
+			gevent.spawn(u.send, 'QUIT', target='', source=user.source)
 
 	def privmsg(self, user, text):
 		for u in self.users:
@@ -321,4 +324,5 @@ try:
 except KeyboardInterrupt:
 	print('closing all connections')
 	for user in list(users.values()):
+		user.greenlet.kill()
 		user.disconnect()
