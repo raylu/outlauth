@@ -7,6 +7,9 @@ import errno
 import socket
 
 import gevent
+from sqlalchemy import orm
+
+import db
 
 users = {}
 channels = {}
@@ -19,16 +22,18 @@ class RPL:
 	CREATED = 3
 	MYINFO = 4
 	WHOISUSER = 311
+	WHOWASUSER = 314
 	ENDOFWHOIS = 318
 	NAMREPLY = 353
 	ENDOFNAMES = 366
+	ENDOFWHOWAS = 369
 	MOTD_CONTENT = 372
 	MOTD_START = 375
 	MOTD_END = 376
+	WASNOSUCHNICK = 406
 	UNKNOWNCOMMAND = 421
 	NONICKNAMEGIVEN = 431
 	ERRONEUSNICKNAME = 432
-
 
 class ClientMessage:
 	''' command, target, text '''
@@ -55,7 +60,8 @@ class User:
 		self.conn = conn
 		self.addr = addr
 		self.last_buf = None
-		self.nick = None
+		self.nick = self.user = self.host = self.real_name = None
+		self.password = None
 		self.channels = set()
 
 	def handle_conn(self):
@@ -128,10 +134,24 @@ class User:
 
 	# handlers
 
+	def pass_handler(self, msg):
+		self.password = msg.target
+
 	def nick(self, msg):
 		if not msg.target:
 			self.send(RPL.NONICKNAMEGIVEN)
+		elif not self.password:
+			self.send(RPL.ERRONEUSNICKNAME, 'No password specified.')
 		elif self.nick is None:
+			user = db.User.login(msg.target, self.password)
+			if not user:
+				self.send(RPL.ERRONEUSNICKNAME, 'Invalid nick/password combination.')
+				self.disconnect()
+			user = db.session.query(db.User).filter(db.User.id==user.id) \
+					.options(orm.joinedload('character').joinedload('parent')).one()
+			self.real_name = user.character.name
+			self.user = self.real_name.replace(' ', '_')
+			self.host = user.character.parent.name.replace(' ', '.')
 			self.nick = msg.target
 			users[self.nick] = self
 		else:
@@ -143,7 +163,7 @@ class User:
 		self.send(RPL.CREATED, 'The server was created today')
 		self.send(RPL.MYINFO, 'outlauth 0.0')
 		self.send(RPL.MOTD_START, '*** Message of the day:')
-		self.send(RPL.MOTD_CONTENT, 'This is the message of the day, bitch')
+		self.send(RPL.MOTD_CONTENT, 'This is the message of the day.')
 		self.send(RPL.MOTD_END, '*** End of message of the day')
 
 	def mode(self, msg):
@@ -153,8 +173,21 @@ class User:
 	def whois(self, msg):
 		if not msg.target:
 			return
-		self.send(RPL.WHOISUSER, msg.target + '? ? * :?')
-		self.send(RPL.ENDOFWHOIS, 'End of WHOIS list')
+		user = users.get(msg.target)
+		if user:
+			self.send(RPL.WHOISUSER, user.nick, user.user, user.host, '*', user.real_name)
+			self.send(RPL.ENDOFWHOIS, 'End of WHOIS list')
+		else:
+			db_user = db.session.query(db.User).filter(db.User.username==msg.target) \
+					.options(orm.joinedload('character').joinedload('parent')).first()
+			if db_user:
+				real_name = db_user.character.name
+				host = db_user.character.parent.name.replace(' ', '.')
+				user_user = real_name.replace(' ', '_')
+				self.send(RPL.WHOWASUSER, db_user.username, user_user, host, '*', real_name)
+				self.send(RPL.ENDOFWHOWAS, 'End of WHOWAS')
+			else:
+				self.send(RPL.WASNOSUCHNICK, 'There is no user by the name ' + msg.target)
 
 	def join(self, msg):
 		if not self.nick or not msg.target:
@@ -190,6 +223,7 @@ class User:
 		self.disconnect()
 
 	handlers = {
+		'PASS': pass_handler,
 		'NICK': nick,
 		'USER': user,
 		'MODE': mode,
