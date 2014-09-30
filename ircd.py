@@ -29,6 +29,7 @@ class RPL:
 	WHOREPLY = 352
 	NAMREPLY = 353
 	ENDOFNAMES = 366
+	ENDOFBANLIST = 368
 	ENDOFWHOWAS = 369
 	MOTD_CONTENT = 372
 	MOTD_START = 375
@@ -39,7 +40,7 @@ class RPL:
 	NONICKNAMEGIVEN = 431
 	ERRONEUSNICKNAME = 432
 	NOTREGISTERED = 451
-	NOCHANMODES = 477
+	UNKNOWNMODE = 472
 	UMODEUNKNOWNFLAG = 501
 	USERSDONTMATCH = 502
 
@@ -190,8 +191,10 @@ class User:
 			else:
 				if not msg.text:
 					self.send(RPL.CHANNELMODEIS, channel.name, '+nt')
+				elif msg.text in ['+b', 'b']:
+					self.send(RPL.ENDOFBANLIST, channel.name, 'End of channel ban list')
 				else:
-					self.send(RPL.NOCHANMODES, channel.name, "Channel doesn't support modes")
+					self.send(RPL.UNKNOWNMODE, 'Setting modes is not implemented')
 		else:
 			if msg.target == self.nick:
 				self.send(RPL.UMODEUNKNOWNFLAG, 'Unknown MODE flag')
