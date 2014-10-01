@@ -4,7 +4,7 @@ import os
 
 import sqlalchemy
 from sqlalchemy import Column, Enum, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import backref, joinedload, relationship
 import sqlalchemy.ext.declarative
 
 import config
@@ -66,8 +66,40 @@ class User(Base):
 		if hashed == user.password:
 			return user
 
+	def entities(self):
+		# default all entity types to None
+		entities = dict.fromkeys(Entity.type.property.columns[0].type.enums, None)
+		entity = session.query(Entity).filter(Entity.id==self.character_id) \
+				.options(joinedload('parent').joinedload('parent').joinedload('parent')).one()
+		while entity:
+			entities[entity.type] = entity
+			entity = entity.parent
+		return entities
+
+	def groups(self, entities):
+		entity_ids = []
+		for entity in entities.values():
+			if entity:
+				entity_ids.append(entity.id)
+		groups = session.query(Group).join(Entity.groups).filter(Entity.id.in_(entity_ids))
+		return list(groups)
+
 	def __repr__(self):
 		return '<User(id=%r, username=%r, character_id=%r)>' % (self.id, self.username, self.character_id)
+
+group_membership = sqlalchemy.Table('group_memberships', Base.metadata,
+	Column('group_id', Integer, ForeignKey('groups.id')),
+	Column('entity_id', Integer, ForeignKey('entities.id')),
+)
+class Group(Base):
+	__tablename__ = 'groups'
+	id = Column(Integer, primary_key=True)
+	name = Column(String(32), nullable=False, unique=True)
+
+	members = relationship('Entity', secondary=group_membership, backref='groups')
+
+	def __repr__(self):
+		return '<Group(id=%r, name=%r)>' % (self.id, self.name)
 
 def init_db():
 	Base.metadata.create_all(bind=engine)

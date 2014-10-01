@@ -9,7 +9,6 @@ import cleancss
 import flask
 from flask import request, session
 import gevent.wsgi
-from sqlalchemy import orm
 
 import ccp_pls
 import config
@@ -20,10 +19,12 @@ app.secret_key = config.secret_key
 
 @app.route('/')
 def home():
-	user = None
+	user = entities = groups = None
 	if 'user_id' in session:
 		user = get_current_user()
-	return flask.render_template('home.html', user=user)
+		entities = user.entities()
+		groups = user.groups(entities)
+	return flask.render_template('home.html', user=user, entities=entities, groups=groups)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
