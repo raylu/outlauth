@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import operator
+
 import Ice
 Ice.loadSlice('-I/usr/share/Ice/slice', ['/usr/share/slice/Murmur.ice'])
 import Murmur
@@ -14,7 +16,12 @@ class Authenticator(Murmur.ServerAuthenticator):
 		user = db.User.login(name, pw)
 		if not user:
 			return -1, new_name, []
-		return user.id, new_name, ['admin', 'militia', 'I.LAW', 'blue']
+		entities = user.entities()
+		groups = user.groups(entities)
+		group_names = list(map(operator.attrgetter('name'), groups))
+		if user.flags == 1:
+			group_names.append('admin')
+		return user.id, new_name, group_names
 
 	def getInfo(self, id, current=None):
 		return False, {}
