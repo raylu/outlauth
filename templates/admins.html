@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block css %}
+	<link rel="stylesheet" href="css/home.css">
+{% endblock %}
+
+{% block main %}
+	<h2>Admin Management!</h2>
+	<p>
+		Admins:
+		{% for x in admins %}
+			<br><a href="{{ url_for('admins_remove', id=x.id) }}">{{x.username}}</a>
+		{% endfor %}
+	</p>
+	<p>
+		Non-Admins:
+		{% for x in non_admins %}
+			<br><a href="{{ url_for('admins_add', id=x.id) }}">{{x.username}}</a>
+		{% endfor %}
+	</p>
+{% endblock %}

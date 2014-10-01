@@ -64,67 +64,6 @@ def register():
 			session['user_id'] = user.id
 			return flask.redirect(flask.url_for('home'))
 
-@app.route('/admin/add/<id>')
-def make_admin(id):
-	if 'user_id' in session:
-		user = get_current_user()
-		if user.flags != 1:
-			flask.abort(403)
-	else:
-		flask.abort(403)
-	db.session.query(db.User) \
-	.filter(db.User.id==int(id)) \
-	.update({'flags': 1})
-
-	db.session.commit()
-	return flask.redirect(flask.url_for('admin'))
-
-@app.route('/admin/remove/<id>')
-def remove_admin(id):
-	if 'user_id' in session:
-		user = get_current_user()
-		if user.flags != 1:
-			flask.abort(403)
-	else:
-		flask.abort(403)
-	db.session.query(db.User) \
-	.filter(db.User.id==int(id)) \
-	.update({'flags': 0})
-
-	db.session.commit()
-
-	return flask.redirect(flask.url_for('admin'))
-
-@app.route('/admin', methods=['GET'])
-def admin():
-	admins = None
-	non_admins = None
-	user = None
-
-	if 'user_id' in session:
-		user = get_current_user()
-
-		if user.flags != 1:
-			flask.abort(403)
-
-		admins = db.session.query(db.User) \
-		.filter(db.User.flags==1)
-
-		non_admins = db.session.query(db.User) \
-		.filter(db.User.flags!=1)
-
-	else:
-		return flask.redirect(flask.url_for('home'))
-
-	return flask.render_template('admin.html', user=user, admins=admins, non_admins=non_admins)
-
-def get_current_user():
-	user = db.session.query(db.User) \
-	.filter(db.User.id==session['user_id']) \
-	.one()
-
-	return user
-
 def check_api_key(key_id, vcode):
 	key_info = ccp_pls.key_info(key_id, vcode)
 
@@ -184,6 +123,42 @@ def logout():
 	except KeyError:
 		pass
 	return flask.redirect(flask.url_for('home'))
+
+@app.route('/admins/add/<id>')
+def admins_add(id):
+	if 'user_id' not in session:
+		flask.abort(403)
+	user = get_current_user()
+	if user.flags != 1:
+		flask.abort(403)
+	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 1})
+	db.session.commit()
+	return flask.redirect(flask.url_for('admins'))
+
+@app.route('/admins/remove/<id>')
+def admins_remove(id):
+	if 'user_id' not in session:
+		flask.abort(403)
+	user = get_current_user()
+	if user.flags != 1:
+		flask.abort(403)
+	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 0})
+	db.session.commit()
+	return flask.redirect(flask.url_for('admins'))
+
+@app.route('/admins')
+def admins():
+	if 'user_id' not in session:
+		return flask.redirect(flask.url_for('login'))
+	user = get_current_user()
+	if user.flags != 1:
+		flask.abort(403)
+	admins = db.session.query(db.User).filter(db.User.flags==1)
+	non_admins = db.session.query(db.User).filter(db.User.flags!=1)
+	return flask.render_template('admins.html', user=user, admins=admins, non_admins=non_admins)
+
+def get_current_user():
+	return db.session.query(db.User).get(session['user_id'])
 
 css_path = os.path.join(os.path.dirname(__file__), 'static', 'css')
 @app.route('/css/<filename>')
