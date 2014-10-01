@@ -3,7 +3,7 @@ import hashlib
 import os
 
 import sqlalchemy
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String
+from sqlalchemy import Column, Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import backref, joinedload, relationship
 import sqlalchemy.ext.declarative
 
@@ -88,8 +88,9 @@ class User(Base):
 		return '<User(id=%r, username=%r, character_id=%r)>' % (self.id, self.username, self.character_id)
 
 group_membership = sqlalchemy.Table('group_memberships', Base.metadata,
-	Column('group_id', Integer, ForeignKey('groups.id')),
-	Column('entity_id', Integer, ForeignKey('entities.id')),
+	Column('group_id', Integer, ForeignKey('groups.id'), nullable=False),
+	Column('entity_id', Integer, ForeignKey('entities.id'), nullable=False),
+	UniqueConstraint('group_id', 'entity_id'),
 )
 class Group(Base):
 	__tablename__ = 'groups'
@@ -103,6 +104,12 @@ class Group(Base):
 
 def init_db():
 	Base.metadata.create_all(bind=engine)
+	session.add_all([
+		Group(name='I.LAW'),
+		Group(name='allies'),
+		Group(name='militia'),
+	])
+	session.commit()
 def drop_db():
 	Base.metadata.drop_all(bind=engine)
 

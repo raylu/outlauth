@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block js %}
+	<script src="/static/js/groups.js"></script>
+{% endblock %}
+{% block css %}
+	<link rel="stylesheet" href="/css/groups.css">
+{% endblock %}
+
+{% block main %}
+	<h2>Group Management</h2>
+	<form id="form" action="" method="post">
+		<div class="col">
+			<h3>Entities</h3>
+			<select id="entities" size="10" multiple="multiple">
+				{% for entity in entities %}
+					<option value="{{ entity.id }}">{{ entity.name }} ({{ entity.type }})</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="col">
+			<select id="group" name="group">
+				{% for group in groups %}
+					<option value="{{ group.id }}">{{ group.name }}</option>
+				{% endfor %}
+			</select>
+			<br><br>
+			<button id="remove">&#11013; remove</button>
+			<button id="add">add &#10145;</button>
+			<br><br>
+			<input type="submit" value="save">
+		</div>
+		<div class="col">
+			<h3>Members</h3>
+			{% for group in groups %}
+				<select id="group_{{ group.id }}" size="10" multiple="multiple" class="hidden">
+					{% for entity in group.members %}
+					<option value="{{ entity.id }}">{{ entity.name }} ({{ entity.type }})</option>
+					{% endfor %}
+				</select>
+			{% endfor %}
+		</div>
+	</form>
+{% endblock %}

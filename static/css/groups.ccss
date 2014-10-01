@@ -1,0 +1,19 @@
+.hidden:
+	display: none
+
+.col:
+	float: left;
+	width: 30%;
+	text-align: center;
+
+input, button, select:
+	background-color: #bbb;
+	color: #222;
+	padding: 3px;
+	border: 1px solid #777;
+
+select:
+	width: 90%;
+select#group:
+	margin-top: 50px;
+	width: auto;

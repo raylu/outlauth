@@ -3,6 +3,7 @@
 import gevent.monkey
 gevent.monkey.patch_all()
 
+import operator
 import os
 
 import cleancss
@@ -125,28 +126,17 @@ def logout():
 		pass
 	return flask.redirect(flask.url_for('home'))
 
-@app.route('/admins/add/<id>')
-def admins_add(id):
-	if 'user_id' not in session:
-		flask.abort(403)
-	user = get_current_user()
-	if user.flags != 1:
-		flask.abort(403)
-	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 1})
-	db.session.commit()
-	return flask.redirect(flask.url_for('admins'))
+def admin_route(route): # decorator
+	def wrapped():
+		if 'user_id' not in session:
+			return flask.redirect(flask.url_for('login'))
+		user = get_current_user()
+		if user.flags != 1:
+			flask.abort(403)
+		return route()
+	return wrapped
 
-@app.route('/admins/remove/<id>')
-def admins_remove(id):
-	if 'user_id' not in session:
-		flask.abort(403)
-	user = get_current_user()
-	if user.flags != 1:
-		flask.abort(403)
-	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 0})
-	db.session.commit()
-	return flask.redirect(flask.url_for('admins'))
-
+@admin_route
 @app.route('/admins')
 def admins():
 	if 'user_id' not in session:
@@ -156,7 +146,45 @@ def admins():
 		flask.abort(403)
 	admins = db.session.query(db.User).filter(db.User.flags==1)
 	non_admins = db.session.query(db.User).filter(db.User.flags!=1)
-	return flask.render_template('admins.html', user=user, admins=admins, non_admins=non_admins)
+	return flask.render_template('admins.html', admins=admins, non_admins=non_admins)
+
+@admin_route
+@app.route('/admins/add/<id>')
+def admins_add(id):
+	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 1})
+	db.session.commit()
+	return flask.redirect(flask.url_for('admins'))
+
+@admin_route
+@app.route('/admins/remove/<id>')
+def admins_remove(id):
+	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 0})
+	db.session.commit()
+	return flask.redirect(flask.url_for('admins'))
+
+@admin_route
+@app.route('/groups', methods=['GET', 'POST'])
+def groups():
+	if request.method == 'GET':
+		entities = db.session.query(db.Entity).filter(db.Entity.type!='character')
+		groups = db.session.query(db.Group)
+		return flask.render_template('groups.html', entities=entities, groups=groups)
+	else:
+		group_id = int(request.form['group'])
+		gm = db.group_membership
+		members = db.session.query(gm).filter_by(group_id=group_id).values(gm.columns['entity_id'])
+		member_ids = set(map(operator.itemgetter(0), members))
+		entity_ids = set(map(int, request.form.getlist('entities')))
+		to_insert = entity_ids - member_ids
+		to_delete = member_ids - entity_ids
+		if to_insert:
+			db.session.execute(gm.insert(),
+					list(map(lambda eid: {'group_id': group_id, 'entity_id': eid}, to_insert)))
+		if to_delete:
+			db.session.execute(gm.delete().where(
+					gm.columns['group_id']==group_id).where(gm.columns['entity_id'].in_(to_delete)))
+		db.session.commit()
+		return flask.redirect(flask.url_for('groups'))
 
 def get_current_user():
 	return db.session.query(db.User).get(session['user_id'])
