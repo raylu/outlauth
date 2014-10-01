@@ -5,6 +5,7 @@ gevent.monkey.patch_all()
 
 import operator
 import os
+import string
 
 import cleancss
 import flask
@@ -29,6 +30,10 @@ def home():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+	def step_2():
+		return flask.render_template('register.html',
+				key_id=request.form['key_id'], vcode=request.form['vcode'], characters=key_info['characters'])
+
 	if request.method == 'GET':
 		# step 1
 		return flask.render_template('register.html')
@@ -40,10 +45,17 @@ def register():
 		email = request.form.get('email')
 		if not char_id or not username or not password or not email:
 			# step 2
-			return flask.render_template('register.html',
-					key_id=request.form['key_id'], vcode=request.form['vcode'], characters=key_info['characters'])
+			return step_2()
 		else:
 			# step 3
+			for whitespace in string.whitespace:
+				if whitespace in username:
+					flask.flash('Whitespace is not allowed in usernames.')
+					return step_2()
+			if '@' not in email or '.' not in email:
+					flask.flash("That doesn't look like a valid e-mail address.")
+					return step_2()
+
 			char_id = int(char_id)
 			for char in key_info['characters']:
 				if char['character_id'] == char_id:
