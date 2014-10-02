@@ -153,18 +153,21 @@ class User:
 		elif not self.password:
 			self.send(RPL.ERRONEUSNICKNAME, 'No password specified.')
 		elif self.nick is None:
-			user = db.User.login(msg.target, self.password)
-			if not user:
-				self.send(RPL.ERRONEUSNICKNAME, 'Invalid nick/password combination.')
-				self.disconnect()
-				return
-			user = db.session.query(db.User).filter(db.User.id==user.id) \
-					.options(orm.joinedload('character').joinedload('parent')).one()
-			self.real_name = user.character.name
-			self.user = self.real_name.replace(' ', '_')
-			self.host = user.character.parent.name.replace(' ', '.')
-			self.nick = msg.target
-			self.source = '%s!%s@%s' % (self.nick, self.user, self.host)
+			try:
+				user = db.User.login(msg.target, self.password)
+				if not user:
+					self.send(RPL.ERRONEUSNICKNAME, 'Invalid nick/password combination.')
+					self.disconnect()
+					return
+				user = db.session.query(db.User).filter(db.User.id==user.id) \
+						.options(orm.joinedload('character').joinedload('parent')).one()
+				self.real_name = user.character.name
+				self.user = self.real_name.replace(' ', '_')
+				self.host = user.character.parent.name.replace(' ', '.')
+				self.nick = msg.target
+				self.source = '%s!%s@%s' % (self.nick, self.user, self.host)
+			finally:
+				db.session.remove()
 			users[self.nick] = self
 		else:
 			self.send(RPL.ERRONEUSNICKNAME, 'You cannot change your nick from your auth username.')
@@ -221,16 +224,19 @@ class User:
 			self.send(RPL.WHOISUSER, user.nick, user.user, user.host, '*', user.real_name)
 			self.send(RPL.ENDOFWHOIS, 'End of WHOIS list')
 		else:
-			db_user = db.session.query(db.User).filter(db.User.username==msg.target) \
-					.options(orm.joinedload('character').joinedload('parent')).first()
-			if db_user:
-				real_name = db_user.character.name
-				host = db_user.character.parent.name.replace(' ', '.')
-				user_user = real_name.replace(' ', '_')
-				self.send(RPL.WHOWASUSER, db_user.username, user_user, host, '*', real_name)
-				self.send(RPL.ENDOFWHOWAS, 'End of WHOWAS')
-			else:
-				self.send(RPL.WASNOSUCHNICK, 'There is no user by the name ' + msg.target)
+			try:
+				db_user = db.session.query(db.User).filter(db.User.username==msg.target) \
+						.options(orm.joinedload('character').joinedload('parent')).first()
+				if db_user:
+					real_name = db_user.character.name
+					host = db_user.character.parent.name.replace(' ', '.')
+					user_user = real_name.replace(' ', '_')
+					self.send(RPL.WHOWASUSER, db_user.username, user_user, host, '*', real_name)
+					self.send(RPL.ENDOFWHOWAS, 'End of WHOWAS')
+				else:
+					self.send(RPL.WASNOSUCHNICK, 'There is no user by the name ' + msg.target)
+			finally:
+				db.session.remove()
 
 	def join(self, msg):
 		if not self.nick or not msg.target:
