@@ -28,7 +28,20 @@ def key_info(key_id, vcode):
 	return info
 
 rs = requests.Session()
-def query(endpoint, key_id, vcode):
-	response = rs.get(base_url + endpoint, params={'keyID': key_id, 'vCode': vcode})
+def query(endpoint, key_id, vcode, char_id=None):
+	response = rs.get(base_url + endpoint, params={'keyID': key_id, 'vCode': vcode, 'characterID': char_id})
 	xml = ElementTree.fromstring(response.content)
 	return xml.find('result')
+
+def alliance_contact_list(key_id, key_vcode, char_id=None):
+	contacts = []
+	result = query('/char/ContactList.xml.aspx', key_id, key_vcode, char_id)
+	if not result:
+		return
+	for row in result.find('rowset[@name="allianceContactList"]'):
+		contacts.append({
+			'contactName': row.get('contactName'),
+			'standing': int(row.get('standing')),
+			'comments': '',
+		})
+	return contacts
