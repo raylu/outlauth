@@ -157,6 +157,7 @@ class User:
 			if not user:
 				self.send(RPL.ERRONEUSNICKNAME, 'Invalid nick/password combination.')
 				self.disconnect()
+				return
 			user = db.session.query(db.User).filter(db.User.id==user.id) \
 					.options(orm.joinedload('character').joinedload('parent')).one()
 			self.real_name = user.character.name
