@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
-import gevent.monkey
-gevent.monkey.patch_all()
+import eventlet
+eventlet.monkey_patch()
 
 import errno
 import socket
 
-import gevent
 from sqlalchemy import orm
 
 import db
@@ -76,7 +75,7 @@ class User:
 
 	def handle_conn(self):
 		print('connected by', self.addr)
-		self.greenlet = gevent.getcurrent()
+		self.greenlet = eventlet.getcurrent()
 		keep_going = True
 		while keep_going:
 			try:
@@ -292,11 +291,11 @@ class Channel:
 		for u in self.users:
 			if user is u:
 				continue
-			gevent.spawn(u.send, 'JOIN', target=self.name, source=user.source)
+			eventlet.spawn_n(u.send, 'JOIN', target=self.name, source=user.source)
 
 	def part(self, user):
 		for u in self.users:
-			gevent.spawn(u.send, 'PART', target=self.name, source=user.source)
+			eventlet.spawn_n(u.send, 'PART', target=self.name, source=user.source)
 		self.users.remove(user)
 
 	def quit(self, user):
@@ -304,13 +303,13 @@ class Channel:
 		for u in self.users:
 			if user is u:
 				continue
-			gevent.spawn(u.send, 'QUIT', target='', source=user.source)
+			eventlet.spawn_n(u.send, 'QUIT', target='', source=user.source)
 
 	def privmsg(self, user, text):
 		for u in self.users:
 			if user is u:
 				continue
-			gevent.spawn(u.send, 'PRIVMSG', text, target=self.name, source=user.nick)
+			eventlet.spawn_n(u.send, 'PRIVMSG', text, target=self.name, source=user.nick)
 
 	def __hash__(self):
 		return hash(self.name)
@@ -323,7 +322,7 @@ try:
 	while True:
 		conn, addr = s.accept()
 		user = User(conn, addr)
-		gevent.spawn(user.handle_conn)
+		eventlet.spawn(user.handle_conn)
 except KeyboardInterrupt:
 	print('closing all connections')
 	for user in list(users.values()):

@@ -4,8 +4,6 @@ In `pg_hba.conf` (usually at `/etc/postgresql/9.4/main/`), set local access to `
 
 ```bash
 git submodule init && git submodule update
-cd gevent.git && CYTHON=cython3 python3 ./setup.py build
-# make sure the gevent symlink points to something valid.
 
 sudo psql
 > create user outlauth;

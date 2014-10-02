@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import gevent.monkey
-gevent.monkey.patch_all()
+import eventlet
+eventlet.monkey_patch()
 
 import operator
 import os
@@ -10,7 +10,7 @@ import string
 import cleancss
 import flask
 from flask import request, session
-import gevent.wsgi
+import eventlet.wsgi
 
 import ccp_pls
 import config
@@ -216,5 +216,5 @@ def shutdown_session(exception=None):
 if config.debug:
 	app.run(host=config.web_host, port=config.web_port, debug=True)
 else:
-	http_server = gevent.wsgi.WSGIServer(('', config.web_port), app)
-	http_server.serve_forever()
+	listener = eventlet.listen((config.web_host, config.web_port))
+	eventlet.wsgi.server(listener, app)
