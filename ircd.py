@@ -70,7 +70,7 @@ class User:
 		self.addr = addr
 		self.greenlet = None
 		self.last_buf = None
-		self.nick = self.user = self.host = self.real_name = self.source = None
+		self.nick = self.user = self.host = self.real_name = self.source = self.groups = None
 		self.password = None
 		self.channels = set()
 
@@ -160,13 +160,13 @@ class User:
 					self.send(RPL.ERRONEUSNICKNAME, 'Invalid nick/password combination.')
 					self.disconnect()
 					return
-				user = db.session.query(db.User).filter(db.User.id==user.id) \
-						.options(orm.joinedload('character').joinedload('parent')).one()
-				self.real_name = user.character.name
+				entities = user.entities()
+				self.real_name = entities['character'].name
 				self.user = self.real_name.replace(' ', '_')
-				self.host = user.character.parent.name.replace(' ', '.')
+				self.host = entities['corporation'].name.replace(' ', '.')
 				self.nick = msg.target
 				self.source = '%s!%s@%s' % (self.nick, self.user, self.host)
+				self.groups = user.groups(entities)
 			finally:
 				db.session.remove()
 			users[self.nick] = self
@@ -184,6 +184,11 @@ class User:
 		self.send(RPL.MOTD_START, '*** Message of the day:')
 		self.send(RPL.MOTD_CONTENT, 'This is the message of the day.')
 		self.send(RPL.MOTD_END, '*** End of message of the day')
+
+		for group in self.groups:
+			if group.name == 'I.LAW':
+				self._join('#alliance')
+				break
 
 	def mode(self, msg):
 		if not self.nick or not msg.target:
@@ -242,18 +247,17 @@ class User:
 	def join(self, msg):
 		if not self.nick or not msg.target:
 			return
-		if msg.target not in channels:
-			channels[msg.target] = channel = Channel(msg.target)
+		self._join(msg.target)
+
+	def _join(self, chan_name):
+		if chan_name not in channels:
+			channels[chan_name] = channel = Channel(chan_name)
 		else:
-			channel = channels[msg.target]
+			channel = channels[chan_name]
 			if channel in self.channels:
 				return
 		channel.join(self)
 		self.channels.add(channel)
-		self.send('JOIN', target=channel.name, source=self.source)
-		names = ' '.join((user.nick for user in channel.users))
-		self.send(RPL.NAMREPLY, '@', channel.name, names)
-		self.send(RPL.ENDOFNAMES, channel.name, 'End of /NAMES list')
 
 	def part(self, msg):
 		if not self.nick or msg.target not in channels:
@@ -300,6 +304,10 @@ class Channel:
 			if user is u:
 				continue
 			eventlet.spawn_n(u.send, 'JOIN', target=self.name, source=user.source)
+		user.send('JOIN', target=self.name, source=user.source)
+		names = ' '.join((u.nick for u in self.users))
+		user.send(RPL.NAMREPLY, '@', self.name, names)
+		user.send(RPL.ENDOFNAMES, self.name, 'End of /NAMES list')
 
 	def part(self, user):
 		for u in self.users:
