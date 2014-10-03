@@ -5,8 +5,6 @@
 {% endblock %}
 
 {% block main %}
-	hi!
-
 	{% if session['user_id'] %}
 		you are logged in as {{ user.username }}
 		<p>
@@ -22,4 +20,17 @@
 			{% endfor %}
 		</p>
 	{% endif %}
+
+	<p>
+		mumble: mumble.amarrvictor.net
+		<br><a href="http://wiki.mumble.info/" target="_blank">download</a>,
+		server &gt; connect &gt; add new... &gt; leave the port default (64738)
+	</p>
+
+	<p>
+		irc: irc.amarrvictor.net
+		<br><a href="https://hexchat.github.io/downloads.html" target="_blank">download</a>,
+		hexchat &gt; network list &gt; add &gt; edit &gt; <a href="https://i.imgur.com/kwC0qIK.png">do this</a>
+		(your user name doesn't matter, but your nick does)
+	</p>
 {% endblock %}
