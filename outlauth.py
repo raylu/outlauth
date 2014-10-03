@@ -39,6 +39,8 @@ def register():
 		return flask.render_template('register.html')
 	else:
 		key_info = check_api_key(request.form['key_id'], request.form['vcode'])
+		if not key_info:
+			return flask.redirect(flask.url_for('register'))
 		char_id = request.form.get('character_id')
 		username = request.form.get('username')
 		password = request.form.get('password')
@@ -84,20 +86,21 @@ def check_api_key(key_id, vcode):
 	error = None
 	if not key_info:
 		error = 'API key ID and vCode combination were not valid.'
-	if key_info['type'] != 'Account':
-		error = 'API key must be account-wide, not character-specific.'
-	if key_info['accessmask'] & 65405259 != 65405259:
-		error = 'API key has insufficient permissions. Please use the create link.'
-	for char in key_info['characters']:
-		if char['faction_id'] == 500003: # Amarr Empire
-			break
 	else:
-		error = 'No characters on this key are enlisted in the Amarr Militia.'
+		if key_info['type'] != 'Account':
+			error = 'API key must be account-wide, not character-specific.'
+		if key_info['accessmask'] & 65405259 != 65405259:
+			error = 'API key has insufficient permissions. Please use the create link.'
+		for char in key_info['characters']:
+			if char['faction_id'] == 500003: # Amarr Empire
+				break
+		else:
+			error = 'No characters on this key are enlisted in the Amarr Militia.'
 
 	if error:
 		flask.flash(error)
-		flask.redirect(flask.url_for('register'))
-	return key_info
+	else:
+		return key_info
 
 def update_db_for_char(char):
 	db.session.merge(db.Entity(
