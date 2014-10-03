@@ -8,6 +8,7 @@ import socket
 
 from sqlalchemy import orm
 
+import config
 import db
 
 users = {}
@@ -323,7 +324,7 @@ class Channel:
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind(('', 6667))
+s.bind((config.irc_host, 6667))
 s.listen(4)
 try:
 	while True:

@@ -3,5 +3,9 @@ web_port = 8894
 secret_key = 'dis iz supar sekrit'
 debug = True
 
+irc_host = ''
+
 database = 'outlauth'
 db_user = 'outlauth'
+
+# vim: set ft=python:
