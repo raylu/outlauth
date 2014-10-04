@@ -1,11 +1,15 @@
 from xml.etree import ElementTree
 
+from datetime import datetime
+from datetime import timedelta
 import requests
+import pdb
+
 
 base_url = 'https://api.eveonline.com'
 
 def key_info(key_id, vcode):
-	result = query('/account/APIKeyInfo.xml.aspx', key_id, vcode)
+	result = query('/account/APIKeyInfo.xml.aspx', key_id, vcode).find('result')
 	if not result:
 		return
 	key = result.find('key')
@@ -28,20 +32,28 @@ def key_info(key_id, vcode):
 	return info
 
 rs = requests.Session()
-def query(endpoint, key_id, vcode, char_id=None):
-	response = rs.get(base_url + endpoint, params={'keyID': key_id, 'vCode': vcode, 'characterID': char_id})
-	xml = ElementTree.fromstring(response.content)
-	return xml.find('result')
 
 def alliance_contact_list(key_id, key_vcode, char_id=None):
 	contacts = []
-	result = query('/char/ContactList.xml.aspx', key_id, key_vcode, char_id)
-	if not result:
+	xml = query('/char/ContactList.xml.aspx', 1188900,'cJvDc3cuvWAuQUKGpDB1Dh44r8bHUTnN6E8SQ9laUIUoMhxstLyyeNbIGg2MqUfv', 92301442)
+	if not xml:
 		return
-	for row in result.find('rowset[@name="allianceContactList"]'):
+	cached_until = datetime.strptime(xml.find('cachedUntil').text, '%Y-%m-%d %H:%M:%S')
+	current_time = datetime.strptime(xml.find('currentTime').text, '%Y-%m-%d %H:%M:%S')
+	#if timedelta(minutes=15) == (cached_until - current_time):
+	result = xml.find('result')
+	for row in result.findall('./rowset[@name="allianceContactList"]/'):
 		contacts.append({
-			'contactName': row.get('contactName'),
-			'standing': int(row.get('standing')),
-			'comments': '',
-		})
+			'id' : int(row.get('contactID')),
+			'contact_name': row.get('contactName'),
+			'standing': float(row.get('standing')),
+			'type_id': int(row.get('contactTypeID')),
+			})
 	return contacts
+	#return contacts
+
+def query(endpoint, key_id, vcode, char_id=None):
+	response = rs.get(base_url + endpoint, params={'keyID': key_id, 'vCode': vcode, 'characterID': char_id})
+	xml = ElementTree.fromstring(response.content)
+	return xml
+

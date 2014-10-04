@@ -154,11 +154,6 @@ def admin_route(route): # decorator
 @admin_route
 @app.route('/admins')
 def admins():
-	if 'user_id' not in session:
-		return flask.redirect(flask.url_for('login'))
-	user = get_current_user()
-	if user.flags != 1:
-		flask.abort(403)
 	admins = db.session.query(db.User).filter(db.User.flags==1)
 	non_admins = db.session.query(db.User).filter(db.User.flags!=1)
 	return flask.render_template('admins.html', admins=admins, non_admins=non_admins)
@@ -181,7 +176,7 @@ def admins_remove(id):
 @app.route('/groups', methods=['GET', 'POST'])
 def groups():
 	if request.method == 'GET':
-		entities = db.session.query(db.Entity).filter(db.Entity.type!='character')
+		entities = db.session.query(db.Entity)
 		groups = db.session.query(db.Group)
 		return flask.render_template('groups.html', entities=entities, groups=groups)
 	else:
@@ -200,6 +195,50 @@ def groups():
 					gm.columns['group_id']==group_id).where(gm.columns['entity_id'].in_(to_delete)))
 		db.session.commit()
 		return flask.redirect(flask.url_for('groups'))
+
+@app.route('/contacts', methods=['GET', 'POST'])
+def contacts():
+	if 'user_id' not in session:
+		return flask.redirect(flask.url_for('login'))
+	user = get_current_user()
+	entities = user.entities()
+	groups = user.groups(entities)
+	contacts = []
+	print(groups)
+	print(db.Group.diplo)
+	if db.Group.diplo not in groups:
+		return flask.redirect(flask.url_for('home'))
+	if request.method == 'GET':
+		contacts = []
+		for x in db.session.query(db.Contact):
+			contacts.append(x)
+	if request.method == 'POST':
+		save_contacts(request.form)
+		update_contacts(user.apikey_id, user.apikey_vcode, user.character_id)
+		return flask.redirect(flask.url_for('contacts'))
+	return flask.render_template('contacts.html', user=user, contacts=contacts)
+
+
+def save_contacts(form):
+	for contact in form:
+		db.session.merge(db.Contact(
+			id=int(contact),
+			comments=form[contact],
+		))
+	db.session.commit()
+
+
+def update_contacts(apikey_id, apikey_vcode, char_id):
+	for contact in ccp_pls.alliance_contact_list(apikey_id, apikey_vcode, char_id):
+		print(contact['contact_name'])
+		db.session.merge(db.Contact(
+			id=contact['id'],
+			name=contact['contact_name'],
+			standing=contact['standing'],
+			type_id=contact['type_id'],
+		))
+	db.session.commit()
+	return flask.redirect(flask.url_for('contacts'))
 
 def get_current_user():
 	return db.session.query(db.User).get(session['user_id'])

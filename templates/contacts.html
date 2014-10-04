@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block css %}
+	<link rel="stylesheet" href="/css/home.css">
+{% endblock %}
+
+{% block main %}
+	<h2>Contacts:</h2>
+	<form id="form" action="" method="post">
+	<table style="width:80%">
+		{% for contact in contacts %}
+			<tr>
+				<td>{{contact.name}}:</td>
+				<td> {{contact.standing}}</td>
+				<td> <textarea name={{contact.id}} rows="3" cols="50">{{contact.comments}}</textarea></td>
+			</tr>
+		{% endfor %}
+
+		<input type="submit" value="save">
+	</form>
+	{{user.character_id}},{{user.apikey_vcode}},{{user.apikey_id}}, {{session['user_id']}}
+{% endblock %}

@@ -3,7 +3,7 @@ import hashlib
 import os
 
 import sqlalchemy
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Column, Enum, ForeignKey, Integer, String, UniqueConstraint, Float
 from sqlalchemy.orm import backref, joinedload, relationship
 import sqlalchemy.ext.declarative
 
@@ -102,12 +102,43 @@ class Group(Base):
 	def __repr__(self):
 		return '<Group(id=%r, name=%r)>' % (self.id, self.name)
 
+	def __eq__(self, other):
+		if self.id != other.id:
+			return False
+		if self.name != other.name:
+			return False
+		return True
+
+	def __ne__(self, other):
+		if self.id == other.id:
+			if self.name == other.name:
+				return False
+		return True
+
+class Contact(Base):
+	__tablename__ = 'contacts'
+	id = Column(Integer, primary_key=True)
+	name = Column(String(64), nullable=False)
+	standing = Column(Float, nullable=False)
+	type_id = Column(Integer, nullable=False)
+	comments = Column(String(256), default="")
+
+	def __repr__(self):
+		return('<Contact(id=%r, name=%r, standing=%r, typeid=%r)>' %(self.id, self.name, self.standing, self.type_id))
+
+
+Group.ilaw = Group(id=1, name='I.LAW')
+Group.allies = Group(id=2, name='allies')
+Group.militia = Group(id=3, name='militia')
+Group.diplo = Group(id=4, name='diplo')
+
 def init_db():
 	Base.metadata.create_all(bind=engine)
 	session.add_all([
-		Group(name='I.LAW'),
-		Group(name='allies'),
-		Group(name='militia'),
+		Group(Group.diplo),
+		Group(Group.ilaw),
+		Group(Group.militia),
+		Group(Group.allies),
 	])
 	session.commit()
 def drop_db():
