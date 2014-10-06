@@ -6,7 +6,7 @@
 
 {% block main %}
 	<h2>Contacts:</h2>
-	<form id="form" action="" method="post">
+	<form id="form" action="" method="post"><br>
 	<table style="width:80%">
 		{% for contact in contacts %}
 			<tr>
@@ -18,5 +18,7 @@
 
 		<input type="submit" value="save">
 	</form>
-	{{user.character_id}},{{user.apikey_vcode}},{{user.apikey_id}}, {{session['user_id']}}
+	<form id="api" action="update_contacts" method="post">
+		<input type="submit" value="update from API"/>
+	</form>
 {% endblock %}

@@ -205,8 +205,6 @@ def contacts():
 	entities = user.entities()
 	groups = user.groups(entities)
 	contacts = []
-	print(groups)
-	print(db.Group.diplo)
 	if db.Group.diplo not in groups:
 		return flask.redirect(flask.url_for('home'))
 	if request.method == 'GET':
@@ -215,9 +213,9 @@ def contacts():
 			contacts.append(x)
 	if request.method == 'POST':
 		save_contacts(request.form)
-		#update_contacts(user.apikey_id, user.apikey_vcode, user.character_id)
 		return flask.redirect(flask.url_for('contacts'))
 	return flask.render_template('contacts.html', user=user, contacts=contacts)
+
 
 
 def save_contacts(form):
@@ -240,7 +238,6 @@ def save_contacts(form):
 
 
 	for contact in changed:
-		print(contact)
 		db.session.merge(db.Contact(
 			id=int(contact.id),
 			comments=contact.comments,
@@ -248,12 +245,19 @@ def save_contacts(form):
 	db.session.commit()
 
 
-def update_contacts(apikey_id, apikey_vcode, char_id):
+
+@app.route('/update_contacts')
+def update_contacts():
+	user=get_current_user()
+	changed=[]
+	removed=[]
 	db_standings = defaultdict(list)
 	api_standings = defaultdict(list)
-	api_contacts = ccp_pls.alliance_contact_list(apikey_id, apikey_vcode, char_id)
+	api_contacts = ccp_pls.alliance_contact_list(user.apikey_id, user.apikey_vcode, user.character_id)
+	if api_contacts == None:
+		return flask.redirect(flask.url_for('contacts'))
 	for contact in api_contacts:
-		api_standings[contact['standing']].append(db.Contact(
+		api_standings[contact['id']].append(db.Contact(
 			id=contact['id'],
 			name=contact['contact_name'],
 			standing=contact['standing'],
@@ -261,7 +265,18 @@ def update_contacts(apikey_id, apikey_vcode, char_id):
 		))
 	db_contacts = db.session.query(db.Contact)
 	for contact in db_contacts:
-		db_standings[contact.standing].append(contact)
+		db_standings[contact.id].append(contact)
+	for contact in db_standings.items():
+		if contact[1][0] != api_standings[contact[1][0].id][0]:
+			if (api_standings[contact[1][0]].id == []):
+				removed.append(contact)
+			else:
+				changed.append(contact)
+	for contact in changed:
+		db.session.merge(api_standings[contact.id])
+	for contact in removed:
+		pass
+		db.session.delete(contact[1][0])
 	db.session.commit()
 	return flask.redirect(flask.url_for('contacts'))
 
