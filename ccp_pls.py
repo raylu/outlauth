@@ -1,9 +1,7 @@
 from xml.etree import ElementTree
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import requests
-import pdb
 
 
 base_url = 'https://api.eveonline.com'

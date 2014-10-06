@@ -11,6 +11,7 @@ import cleancss
 import flask
 from flask import request, session
 import eventlet.wsgi
+from collections import defaultdict
 
 import ccp_pls
 import config
@@ -214,29 +215,53 @@ def contacts():
 			contacts.append(x)
 	if request.method == 'POST':
 		save_contacts(request.form)
-		update_contacts(user.apikey_id, user.apikey_vcode, user.character_id)
+		#update_contacts(user.apikey_id, user.apikey_vcode, user.character_id)
 		return flask.redirect(flask.url_for('contacts'))
 	return flask.render_template('contacts.html', user=user, contacts=contacts)
 
 
 def save_contacts(form):
+	db_contacts = []
+	form_contacts = defaultdict(list)
+	changed = []
+	for contact in db.session.query(db.Contact):
+		db_contacts.append(contact)
 	for contact in form:
+		form_contacts[int(contact)].append(form[contact])
+	for contact in db_contacts:
+		if (form_contacts[contact.id][0] != contact.comments):
+			changed.append(db.Contact(
+				id=contact.id,
+				name=contact.name,
+				standing=contact.standing,
+				type_id=contact.type_id,
+				comments=form_contacts[contact.id][0],
+			))
+
+
+	for contact in changed:
+		print(contact)
 		db.session.merge(db.Contact(
-			id=int(contact),
-			comments=form[contact],
+			id=int(contact.id),
+			comments=contact.comments,
 		))
 	db.session.commit()
 
 
 def update_contacts(apikey_id, apikey_vcode, char_id):
-	for contact in ccp_pls.alliance_contact_list(apikey_id, apikey_vcode, char_id):
-		print(contact['contact_name'])
-		db.session.merge(db.Contact(
+	db_standings = defaultdict(list)
+	api_standings = defaultdict(list)
+	api_contacts = ccp_pls.alliance_contact_list(apikey_id, apikey_vcode, char_id)
+	for contact in api_contacts:
+		api_standings[contact['standing']].append(db.Contact(
 			id=contact['id'],
 			name=contact['contact_name'],
 			standing=contact['standing'],
-			type_id=contact['type_id'],
+			type_id=contact['type_id']
 		))
+	db_contacts = db.session.query(db.Contact)
+	for contact in db_contacts:
+		db_standings[contact.standing].append(contact)
 	db.session.commit()
 	return flask.redirect(flask.url_for('contacts'))
 

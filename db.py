@@ -126,6 +126,29 @@ class Contact(Base):
 	def __repr__(self):
 		return('<Contact(id=%r, name=%r, standing=%r, typeid=%r)>' %(self.id, self.name, self.standing, self.type_id))
 
+	def __eq__(self, other):
+		if self.id != other.id:
+			return False
+		if self.name != other.name:
+			return False
+		if self.standing != other.standing:
+			return False
+		if self.type_id != other.type_id:
+			return False
+		if self.comments != other.comments:
+			return False
+		return True
+
+	def __ne__(self, other):
+		if self.id == other.id:
+			if self.name==other.name:
+				if self.standing==other.standing:
+					if self.type_id==other.type_id:
+						if self.comments==other.comments:
+							return False
+		else:
+			return True
+
 
 Group.ilaw = Group(id=1, name='I.LAW')
 Group.allies = Group(id=2, name='allies')
