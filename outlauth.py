@@ -246,13 +246,13 @@ def save_contacts(form):
 
 
 
-@app.route('/update_contacts')
+@app.route('/update_contacts', methods=(['POST']))
 def update_contacts():
 	user=get_current_user()
 	changed=[]
 	removed=[]
-	db_standings = defaultdict(list)
-	api_standings = defaultdict(list)
+	db_standings = {}
+	api_standings = {}
 	api_contacts = ccp_pls.alliance_contact_list(user.apikey_id, user.apikey_vcode, user.character_id)
 	if api_contacts == None:
 		return flask.redirect(flask.url_for('contacts'))
@@ -267,8 +267,8 @@ def update_contacts():
 	for contact in db_contacts:
 		db_standings[contact.id].append(contact)
 	for contact in db_standings.items():
-		if contact[1][0] != api_standings[contact[1][0].id][0]:
-			if (api_standings[contact[1][0]].id == []):
+		if contact != api_standings[contact[id]]:
+			if (api_standings[contact].id == []):
 				removed.append(contact)
 			else:
 				changed.append(contact)
@@ -276,7 +276,7 @@ def update_contacts():
 		db.session.merge(api_standings[contact.id])
 	for contact in removed:
 		pass
-		db.session.delete(contact[1][0])
+		db.session.delete(contact)
 	db.session.commit()
 	return flask.redirect(flask.url_for('contacts'))
 
