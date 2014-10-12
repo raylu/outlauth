@@ -3,6 +3,8 @@
 import eventlet
 eventlet.monkey_patch()
 
+from datetime import timedelta, datetime
+
 import errno
 import socket
 
@@ -73,10 +75,12 @@ class User:
 		self.nick = self.user = self.host = self.real_name = self.source = self.groups = None
 		self.password = None
 		self.channels = set()
+		self.last_recv_time = None
 
 	def handle_conn(self):
 		print('connected by', self.addr)
 		self.greenlet = eventlet.getcurrent()
+		self.last_recv_time = datetime.utcnow()
 		keep_going = True
 		while keep_going:
 			try:
@@ -106,6 +110,7 @@ class User:
 		self.conn.close()
 
 	def handle_message(self, msg):
+		self.last_recv_time = datetime.utcnow()
 		handler = User.handlers.get(msg.command)
 		if handler:
 			handler(self, msg)
@@ -142,6 +147,14 @@ class User:
 		self.conn.close()
 		if self.nick is not None:
 			del users[self.nick]
+
+	def ping(self):
+		now = datetime.utcnow()
+		last_time = user.last_recv_time
+		if now - last_time >= timedelta(minutes=4):
+			self.disconnect()
+		if now - last_time >= timedelta(seconds=180):
+			self.send('PING', target=user.nick)
 
 	# handlers
 
@@ -277,6 +290,10 @@ class User:
 	def quit(self, msg):
 		self.disconnect()
 
+	def pong(self, msg):
+		#amusingly we don't actually need to do anything here
+		pass
+
 	handlers = {
 		'PASS': pass_handler,
 		'NICK': nick,
@@ -288,6 +305,7 @@ class User:
 		'PART': part,
 		'PRIVMSG': privmsg,
 		'QUIT': quit,
+		'PONG': pong,
 	}
 
 	def __hash__(self):
@@ -330,10 +348,22 @@ class Channel:
 	def __hash__(self):
 		return hash(self.name)
 
+
+def pingall():
+	while True:
+		for user in list(users.values()):
+			eventlet.spawn_n(user.ping)
+		eventlet.sleep(seconds=1)
+
+
+pt = eventlet.spawn(pingall)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((config.irc_host, 6667))
 s.listen(4)
+
+
+
 try:
 	while True:
 		conn, addr = s.accept()
