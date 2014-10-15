@@ -148,12 +148,11 @@ class User:
 		if self.nick is not None:
 			del users[self.nick]
 
-	def ping(self):
-		now = datetime.utcnow()
-		last_time = user.last_recv_time
-		if now - last_time >= timedelta(minutes=4):
+	def check_timeout(self):
+		since = datetime.now() - user.last_recv_time
+		if since >= timedelta(minutes=4):
 			self.disconnect()
-		if now - last_time >= timedelta(seconds=180):
+		elif since >= timedelta(minutes=3):
 			self.send('PING', target=user.nick)
 
 	# handlers
@@ -352,11 +351,11 @@ class Channel:
 def pingall():
 	while True:
 		for user in list(users.values()):
-			eventlet.spawn_n(user.ping)
-		eventlet.sleep(seconds=1)
+			eventlet.spawn_n(user.check_timeout)
+		eventlet.sleep(60)
 
 
-pt = eventlet.spawn(pingall)
+eventlet.spawn(pingall)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((config.irc_host, 6667))
