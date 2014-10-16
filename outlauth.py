@@ -19,6 +19,7 @@ import db
 
 app = flask.Flask(__name__)
 app.secret_key = config.secret_key
+flask.Response.autocorrect_location_header = False
 
 @app.route('/')
 def home():
@@ -213,8 +214,6 @@ def contacts():
 		save_contacts(request.form)
 		return flask.redirect(flask.url_for('contacts'))
 	return flask.render_template('contacts.html', user=user, contacts=contacts)
-
-
 
 def save_contacts(form):
 	form_contacts = defaultdict(list)
