@@ -147,10 +147,10 @@ Group.diplo = Group(id=4, name='diplo')
 def init_db():
 	Base.metadata.create_all(bind=engine)
 	session.add_all([
-		Group(Group.diplo),
-		Group(Group.ilaw),
-		Group(Group.militia),
-		Group(Group.allies),
+		Group.diplo,
+		Group.ilaw,
+		Group.militia,
+		Group.allies,
 	])
 	session.commit()
 def drop_db():

@@ -208,9 +208,7 @@ def contacts():
 	if db.Group.diplo not in groups:
 		return flask.redirect(flask.url_for('home'))
 	if request.method == 'GET':
-		contacts = []
-		for x in db.session.query(db.Contact):
-			contacts.append(x)
+		contacts = db.session.query(db.Contact)
 	if request.method == 'POST':
 		save_contacts(request.form)
 		return flask.redirect(flask.url_for('contacts'))
@@ -219,15 +217,12 @@ def contacts():
 
 
 def save_contacts(form):
-	db_contacts = []
 	form_contacts = defaultdict(list)
 	changed = []
-	for contact in db.session.query(db.Contact):
-		db_contacts.append(contact)
 	for contact in form:
 		form_contacts[int(contact)].append(form[contact])
-	for contact in db_contacts:
-		if (form_contacts[contact.id][0] != contact.comments):
+	for contact in db.session.query(db.Contact):
+		if form_contacts[contact.id][0] != contact.comments:
 			changed.append(db.Contact(
 				id=contact.id,
 				name=contact.name,
@@ -236,7 +231,6 @@ def save_contacts(form):
 				comments=form_contacts[contact.id][0],
 			))
 
-
 	for contact in changed:
 		db.session.merge(db.Contact(
 			id=int(contact.id),
@@ -244,40 +238,42 @@ def save_contacts(form):
 		))
 	db.session.commit()
 
-
-
 @app.route('/update_contacts', methods=(['POST']))
 def update_contacts():
-	user=get_current_user()
-	changed=[]
-	removed=[]
-	db_standings = {}
-	api_standings = {}
+	user = get_current_user()
 	api_contacts = ccp_pls.alliance_contact_list(user.apikey_id, user.apikey_vcode, user.character_id)
-	if api_contacts == None:
+	if api_contacts is None:
 		return flask.redirect(flask.url_for('contacts'))
+
+	api_standings = {}
 	for contact in api_contacts:
-		api_standings[contact['id']].append(db.Contact(
+		api_standings[contact['id']] = db.Contact(
 			id=contact['id'],
 			name=contact['contact_name'],
 			standing=contact['standing'],
 			type_id=contact['type_id']
-		))
-	db_contacts = db.session.query(db.Contact)
-	for contact in db_contacts:
-		db_standings[contact.id].append(contact)
-	for contact in db_standings.items():
-		if contact != api_standings[contact[id]]:
-			if (api_standings[contact].id == []):
-				removed.append(contact)
-			else:
+		)
+
+	changed = []
+	removed = []
+	for contact in db.session.query(db.Contact):
+		try:
+			api_standing = api_standings[contact.id].standing
+		except KeyError:
+			removed.append(contact)
+		else:
+			if contact.standing != api_standing:
+				contact.standing = api_standing
 				changed.append(contact)
+			del api_standings[contact.id]
+
+	db.session.add_all(api_standings.values())
 	for contact in changed:
 		db.session.merge(api_standings[contact.id])
 	for contact in removed:
-		pass
 		db.session.delete(contact)
 	db.session.commit()
+
 	return flask.redirect(flask.url_for('contacts'))
 
 def get_current_user():
