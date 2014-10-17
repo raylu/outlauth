@@ -3,8 +3,8 @@
 import eventlet
 eventlet.monkey_patch()
 
+import atexit
 from datetime import timedelta, datetime
-
 import errno
 import socket
 
@@ -347,29 +347,31 @@ class Channel:
 	def __hash__(self):
 		return hash(self.name)
 
-
-def pingall():
+def ping_all():
 	while True:
 		for user in list(users.values()):
 			eventlet.spawn_n(user.check_timeout)
 		eventlet.sleep(60)
 
-
-eventlet.spawn(pingall)
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind((config.irc_host, 6667))
-s.listen(4)
-
-
-
-try:
-	while True:
-		conn, addr = s.accept()
-		user = User(conn, addr)
-		eventlet.spawn(user.handle_conn)
-except KeyboardInterrupt:
+def disconnect_all():
 	print('closing all connections')
 	for user in list(users.values()):
 		user.greenlet.kill()
 		user.disconnect()
+
+def main():
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	s.bind((config.irc_host, 6667))
+	s.listen(4)
+
+	eventlet.spawn(ping_all)
+	atexit.register(disconnect_all)
+
+	while True:
+		conn, addr = s.accept()
+		user = User(conn, addr)
+		eventlet.spawn(user.handle_conn)
+
+if __name__ == '__main__':
+	main()
