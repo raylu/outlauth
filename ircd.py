@@ -161,7 +161,7 @@ class User:
 		if since >= timedelta(minutes=4):
 			self.disconnect()
 		elif since >= timedelta(minutes=3):
-			self.send('PING', target=user.nick)
+			self.send('PING', target=self.nick)
 
 	# handlers
 
