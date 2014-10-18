@@ -149,7 +149,7 @@ class User:
 			del users[self.nick]
 
 	def check_timeout(self):
-		since = datetime.now() - user.last_recv_time
+		since = datetime.now() - self.last_recv_time
 		if since >= timedelta(minutes=4):
 			self.disconnect()
 		elif since >= timedelta(minutes=3):
@@ -290,7 +290,7 @@ class User:
 		self.disconnect()
 
 	def pong(self, msg):
-		#amusingly we don't actually need to do anything here
+		# amusingly, we don't actually need to do anything here
 		pass
 
 	handlers = {
