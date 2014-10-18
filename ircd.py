@@ -70,7 +70,8 @@ class User:
 	def __init__(self, conn, addr):
 		self.conn = conn
 		self.addr = addr
-		self.greenlet = None
+		self.recv_greenlet = self.send_greenlet = None
+		self.send_queue = eventlet.queue.LightQueue()
 		self.last_buf = None
 		self.nick = self.user = self.host = self.real_name = self.source = self.groups = None
 		self.password = None
@@ -79,10 +80,10 @@ class User:
 
 	def handle_conn(self):
 		print('connected by', self.addr)
-		self.greenlet = eventlet.getcurrent()
+		self.recv_greenlet = eventlet.getcurrent()
+		self.send_greenlet = eventlet.spawn(self.handle_send_queue)
 		self.last_recv_time = datetime.utcnow()
-		keep_going = True
-		while keep_going:
+		while True:
 			try:
 				data = self.conn.recv(4096)
 			except OSError as e:
@@ -102,24 +103,30 @@ class User:
 				if DEBUG:
 					print('<-', line)
 				message = ClientMessage(line)
-				keep_going = self.handle_message(message)
+				self.handle_message(message)
 			last = lines[-1]
 			if last:
 				self.last_buf = last
-		print('disconnecting', self.addr)
-		self.conn.close()
+
+	def handle_send_queue(self):
+		while True:
+			line = self.send_queue.get()
+			try:
+				self.conn.sendall(line.encode('utf-8'))
+			except OSError as e:
+				if e.errno in [errno.EBADF, errno.ECONNRESET]:
+					self.disconnect()
+				else:
+					raise
 
 	def handle_message(self, msg):
 		self.last_recv_time = datetime.utcnow()
 		handler = User.handlers.get(msg.command)
 		if handler:
 			handler(self, msg)
-			if msg.command == 'QUIT':
-				return False
 		else:
 			print('unhandled command', msg)
 			self.send(RPL.UNKNOWNCOMMAND)
-		return True
 
 	def send(self, command, *args, target=None, source=None):
 		if target is None:
@@ -133,15 +140,16 @@ class User:
 		if DEBUG:
 			print('->', line)
 		line += '\r\n'
-		try:
-			self.conn.sendall(line.encode('utf-8'))
-		except OSError as e:
-			if e.errno in [errno.EBADF, errno.ECONNRESET]:
-				self.disconnect()
-			else:
-				raise
+		self.send_queue.put_nowait(line)
 
 	def disconnect(self):
+		print('disconnecting', self.addr)
+		current_greenlet = eventlet.getcurrent()
+		for greenlet in [self.recv_greenlet, self.send_greenlet]:
+			# we might be called by handle_conn/quit, handle_send_queue, or ping_all/disconnect_all
+			if greenlet is not current_greenlet:
+				greenlet.kill()
+
 		for channel in self.channels:
 			channel.quit(self)
 		self.conn.close()
@@ -320,7 +328,7 @@ class Channel:
 		for u in self.users:
 			if user is u:
 				continue
-			eventlet.spawn_n(u.send, 'JOIN', target=self.name, source=user.source)
+			u.send('JOIN', target=self.name, source=user.source)
 		user.send('JOIN', target=self.name, source=user.source)
 		names = ' '.join((u.nick for u in self.users))
 		user.send(RPL.NAMREPLY, '@', self.name, names)
@@ -328,7 +336,7 @@ class Channel:
 
 	def part(self, user):
 		for u in self.users:
-			eventlet.spawn_n(u.send, 'PART', target=self.name, source=user.source)
+			u.send('PART', target=self.name, source=user.source)
 		self.users.remove(user)
 
 	def quit(self, user):
@@ -336,13 +344,13 @@ class Channel:
 		for u in self.users:
 			if user is u:
 				continue
-			eventlet.spawn_n(u.send, 'QUIT', target='', source=user.source)
+			u.send('QUIT', target='', source=user.source)
 
 	def privmsg(self, user, text):
 		for u in self.users:
 			if user is u:
 				continue
-			eventlet.spawn_n(u.send, 'PRIVMSG', text, target=self.name, source=user.nick)
+			u.send('PRIVMSG', text, target=self.name, source=user.nick)
 
 	def __hash__(self):
 		return hash(self.name)
@@ -350,13 +358,13 @@ class Channel:
 def ping_all():
 	while True:
 		for user in list(users.values()):
-			eventlet.spawn_n(user.check_timeout)
+			user.check_timeout()
 		eventlet.sleep(60)
 
 def disconnect_all():
 	print('closing all connections')
 	for user in list(users.values()):
-		user.greenlet.kill()
+		user.recv_greenlet.kill()
 		user.disconnect()
 
 def main():
