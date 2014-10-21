@@ -93,7 +93,7 @@ def check_api_key(key_id, vcode):
 	else:
 		if key_info['type'] != 'Account':
 			error = 'API key must be account-wide, not character-specific.'
-		if key_info['accessmask'] & 65405259 != 65405259:
+		if key_info['accessmask'] & 65405275 != 65405275:
 			error = 'API key has insufficient permissions. Please use the create link.'
 		for char in key_info['characters']:
 			if char['faction_id'] == 500003: # Amarr Empire
