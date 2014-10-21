@@ -5,7 +5,7 @@
 
 body:
 	height: 100%
-	background: #111
+	background-color: #111
 	color: #ccc
 	font-family: sans-serif
 
@@ -16,9 +16,16 @@ a:
 p:
 	margin-top: 1em
 
+input, button, select:
+	border: 1px solid #777;
+	padding: 3px 4px;
+input, button:
+	background-color: #222
+	color: inherit
+
 .wrapper:
 	width: 1200px
-	margin: 0 auto
+	margin: 0 auto 50px
 
 .topbar:
 	margin: 15px 0
@@ -32,3 +39,12 @@ p:
 		& > a:
 			display: inline-block
 			margin: 0 10px
+
+.message:
+	width: 75%
+	margin: 0 auto
+	padding: 12px 15px
+	background-color: #422
+
+.clear:
+	clear: both

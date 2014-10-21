@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
+{% block css %}
+	<link rel="stylesheet" href="/css/register.css">
+{% endblock %}
+
 {% block main %}
 
-<h1>register</h1>
+<h1>Register</h1>
 <p>
 	<a href="https://community.eveonline.com/support/api-key/CreatePredefined?accessMask=65405259" target="_blank">
 		create an api key
@@ -51,7 +55,9 @@
 		</p>
 	{% endif %}
 
-	<input type="submit" name="register" value="register">
+	<p>
+		<input type="submit" name="register" value="register">
+	</p>
 </form>
 
 {% endblock %}
