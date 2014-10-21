@@ -48,6 +48,8 @@ def register():
 		password = request.form.get('password')
 		email = request.form.get('email')
 		if not char_id or not username or not password or not email:
+			if char_id or username or password or email:
+				flask.flash('You must pick a character, username, and password and provide an email address.')
 			# step 2
 			return step_2()
 		else:
