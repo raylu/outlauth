@@ -331,20 +331,15 @@ class Channel:
 			u.send('JOIN', target=self.name, source=user.source)
 		user.send('JOIN', target=self.name, source=user.source)
 
-		userlist = []
-		namelist = self.users
-
-		#names = ' '.join((u.nick for u in self.users))
 		names = []
 		for x in self.users:
-			names.append(x.source+'x')
+			names.append(x.nick)
 			if len(names) == 10:
-				snd = ' '.join((n for n in names))
-				user.send(RPL.NAMREPLY, '@', self.name, snd, source=config.irc_host)
+				user.send(RPL.NAMREPLY, '@', self.name, ' '.join(names), source=config.irc_host)
 				names.clear()
 
-		snd = ' '.join((n for n in names))
-		user.send(RPL.NAMREPLY, '@', self.name, snd, source=config.irc_host)
+		if len(names) > 0:
+		    user.send(RPL.NAMREPLY, '@', self.name, ' '.join(names), source=config.irc_host)
 		user.send(RPL.ENDOFNAMES, self.name, 'End of /NAMES list')
 
 	def part(self, user):
