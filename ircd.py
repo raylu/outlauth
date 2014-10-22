@@ -240,7 +240,7 @@ class User:
 			for user in channel.users:
 				self.send(RPL.WHOREPLY, channel.name, user.user, user.host, 'outlauth', user.nick,
 						'H', '0 ' + user.real_name) # here, hopcount 0
-			self.send(RPL.ENDOFWHO, channel.name, 'End of WHO list')
+			self.send(RPL.ENDOFWHO, channel.name, 'End of WHO list.')
 
 	def whois(self, msg):
 		if not msg.target:
@@ -330,8 +330,21 @@ class Channel:
 				continue
 			u.send('JOIN', target=self.name, source=user.source)
 		user.send('JOIN', target=self.name, source=user.source)
-		names = ' '.join((u.nick for u in self.users))
-		user.send(RPL.NAMREPLY, '@', self.name, names)
+
+		userlist = []
+		namelist = self.users
+
+		#names = ' '.join((u.nick for u in self.users))
+		names = []
+		for x in self.users:
+			names.append(x.source+'x')
+			if len(names) == 10:
+				snd = ' '.join((n for n in names))
+				user.send(RPL.NAMREPLY, '@', self.name, snd, source=config.irc_host)
+				names.clear()
+
+		snd = ' '.join((n for n in names))
+		user.send(RPL.NAMREPLY, '@', self.name, snd, source=config.irc_host)
 		user.send(RPL.ENDOFNAMES, self.name, 'End of /NAMES list')
 
 	def part(self, user):

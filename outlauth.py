@@ -23,6 +23,7 @@ flask.Response.autocorrect_location_header = False
 
 @app.route('/')
 def home():
+	print(db.session, id(db.session))
 	user = entities = groups = None
 	if 'user_id' in session:
 		user = get_current_user()
