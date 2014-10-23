@@ -173,6 +173,9 @@ class User:
 			self.send(RPL.NONICKNAMEGIVEN)
 		elif not self.password:
 			self.send(RPL.ERRONEUSNICKNAME, 'No password specified.')
+		elif msg.target in users:
+			self.send(RPL.ERRONEUSNICKNAME, 'Already a User connected')
+			self.disconnect()
 		elif self.nick is None:
 			try:
 				user = db.User.login(msg.target, self.password)
