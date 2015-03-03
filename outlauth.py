@@ -23,7 +23,6 @@ flask.Response.autocorrect_location_header = False
 
 @app.route('/')
 def home():
-	print(db.session, id(db.session))
 	user = entities = groups = None
 	if 'user_id' in session:
 		user = get_current_user()
@@ -66,8 +65,6 @@ def register():
 			char_id = int(char_id)
 			for char in key_info['characters']:
 				if char['character_id'] == char_id:
-					if char['faction_id'] != 500003: # Amarr Empire
-						flask.abort(400)
 					update_db_for_char(char)
 					db.session.commit()
 					break
@@ -96,11 +93,6 @@ def check_api_key(key_id, vcode):
 			error = 'API key must be account-wide, not character-specific.'
 		if key_info['accessmask'] & 65405275 != 65405275:
 			error = 'API key has insufficient permissions. Please use the create link.'
-		for char in key_info['characters']:
-			if char['faction_id'] == 500003: # Amarr Empire
-				break
-		else:
-			error = 'No characters on this key are enlisted in the Amarr Militia.'
 
 	if error:
 		flask.flash(error)
@@ -108,19 +100,16 @@ def check_api_key(key_id, vcode):
 		return key_info
 
 def update_db_for_char(char):
-	db.session.merge(db.Entity(
-		id=char['faction_id'], type='faction', name=char['faction_name']))
 	if char['alliance_id']:
 		db.session.merge(db.Entity(
-			id=char['alliance_id'], type='alliance',
-			name=char['alliance_name'], parent_id=char['faction_id']))
-		db.session.merge(db.Entity(
-			id=char['corporation_id'], type='corporation',
-			name=char['corporation_name'], parent_id=char['alliance_id']))
-	else:
-		db.session.merge(db.Entity(
-			id=char['corporation_id'], type='corporation',
-			name=char['corporation_name'], parent_id=char['faction_id']))
+			id=char['alliance_id'], type='alliance', name=char['alliance_name']))
+
+	corporation = db.Entity(
+		id=char['corporation_id'], type='corporation', name=char['corporation_name'])
+	if char['alliance_id']:
+		corporation.parent_id = char['alliance_id']
+	db.session.merge(corporation)
+
 	db.session.merge(db.Entity(
 		id=char['character_id'], type='character',
 		name=char['character_name'], parent_id=char['corporation_id']))
@@ -201,22 +190,15 @@ def groups():
 		db.session.commit()
 		return flask.redirect(flask.url_for('groups'))
 
+@admin_route
 @app.route('/contacts', methods=['GET', 'POST'])
 def contacts():
-	if 'user_id' not in session:
-		return flask.redirect(flask.url_for('login'))
-	user = get_current_user()
-	entities = user.entities()
-	groups = user.groups(entities)
-	contacts = []
-	if db.Group.diplo not in groups:
-		return flask.redirect(flask.url_for('home'))
 	if request.method == 'GET':
-		contacts = db.session.query(db.Contact)
-	if request.method == 'POST':
+		contact_list = db.session.query(db.Contact)
+		return flask.render_template('contacts.html', user=user, contacts=contact_list)
+	elif request.method == 'POST':
 		save_contacts(request.form)
 		return flask.redirect(flask.url_for('contacts'))
-	return flask.render_template('contacts.html', user=user, contacts=contacts)
 
 def save_contacts(form):
 	form_contacts = defaultdict(list)

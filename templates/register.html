@@ -30,8 +30,7 @@
 			{% for char in characters %}
 				<br>
 				<label>
-					<input type="radio" name="character_id" value="{{ char['character_id'] }}"
-						{% if char['faction_id'] != 500003 %}disabled="disabled"{% endif %}>
+					<input type="radio" name="character_id" value="{{ char['character_id'] }}">
 					<img src="https://image.eveonline.com/Character/{{ char['character_id'] }}_64.jpg" alt="{{ char['character_name'] }}">
 					{{ char['character_name'] }}, {{ char['corporation_name'] }}
 					{% if char['alliance_id'] %}, {{ char['alliance_name'] }}{% endif %}

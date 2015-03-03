@@ -209,8 +209,8 @@ class User:
 		self.send(RPL.MOTD_END, '*** End of message of the day')
 
 		for group in self.groups:
-			if group.name == 'I.LAW':
-				self._join('#alliance')
+			if group.name == 'grim sleepers':
+				self._join('#grimsleepers')
 				break
 
 	def mode(self, msg):

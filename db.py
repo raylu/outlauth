@@ -25,7 +25,7 @@ Base.query = session.query_property()
 class Entity(Base):
 	__tablename__ = 'entities'
 	id = Column(Integer, primary_key=True, autoincrement=False)
-	type = Column(Enum('character', 'corporation', 'alliance', 'faction', name='entity_type'), nullable=False)
+	type = Column(Enum('character', 'corporation', 'alliance', name='entity_type'), nullable=False)
 	name = Column(String(64), nullable=False)
 	parent_id = Column(Integer, ForeignKey('entities.id'))
 
@@ -139,18 +139,12 @@ class Contact(Base):
 				return True
 		return False
 
-Group.ilaw = Group(id=1, name='I.LAW')
-Group.allies = Group(id=2, name='allies')
-Group.militia = Group(id=3, name='militia')
-Group.diplo = Group(id=4, name='diplo')
+Group.grim_sleepers = Group(id=1, name='grim sleepers')
 
 def init_db():
 	Base.metadata.create_all(bind=engine)
 	session.add_all([
-		Group.diplo,
-		Group.ilaw,
-		Group.militia,
-		Group.allies,
+		Group.grim_sleepers,
 	])
 	session.commit()
 def drop_db():
