@@ -155,8 +155,10 @@ class User:
 		for channel in self.channels:
 			channel.quit(self)
 		self.conn.close()
-		if self.nick is not None:
+		try:
 			del users[self.nick]
+		except KeyError:
+			pass
 
 	def check_timeout(self):
 		since = datetime.now() - self.last_recv_time
