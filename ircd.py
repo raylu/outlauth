@@ -55,6 +55,8 @@ class ClientMessage:
 		self.command = split[0]
 		if len(split) > 1:
 			self.target = split[1]
+			if len(split) == 2 and self.target[0] == ':':
+				self.target = self.target[1:]
 		else:
 			self.target = None # this shouldn't happen
 		self.text = None
