@@ -4,6 +4,7 @@ import eventlet
 eventlet.monkey_patch()
 
 from collections import defaultdict
+from functools import wraps
 import operator
 import os
 import string
@@ -144,6 +145,7 @@ def logout():
 	return flask.redirect(flask.url_for('home'))
 
 def admin_route(route): # decorator
+	@wraps(route)
 	def wrapped():
 		if 'user_id' not in session:
 			return flask.redirect(flask.url_for('login'))
