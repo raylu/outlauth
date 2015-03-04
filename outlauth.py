@@ -3,15 +3,16 @@
 import eventlet
 eventlet.monkey_patch()
 
+from collections import defaultdict
 import operator
 import os
 import string
 
 import cleancss
+import eventlet.wsgi
 import flask
 from flask import request, session
-import eventlet.wsgi
-from collections import defaultdict
+import sqlalchemy.exc
 
 import ccp_pls
 import config
@@ -76,7 +77,14 @@ def register():
 					apikey_id=int(request.form['key_id']), apikey_vcode=request.form['vcode'],
 					character_id=char_id)
 			db.session.add(user)
-			db.session.commit()
+			try:
+				db.session.commit()
+			except sqlalchemy.exc.DBAPIError as e:
+				if e.orig.code == '23505': # unique_violation
+					flask.flash('Username or email already exists.')
+					return step_2()
+				else:
+					raise
 
 			session.permanent = True
 			session['user_id'] = user.id
