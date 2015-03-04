@@ -24,7 +24,7 @@ input, button:
 	color: inherit
 
 .wrapper:
-	width: 1200px
+	max-width: 1200px
 	margin: 0 auto 50px
 
 .topbar:
