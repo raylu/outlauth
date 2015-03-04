@@ -153,29 +153,29 @@ def admin_route(route): # decorator
 		return route()
 	return wrapped
 
-@admin_route
 @app.route('/admins')
+@admin_route
 def admins():
 	admins = db.session.query(db.User).filter(db.User.flags==1)
 	non_admins = db.session.query(db.User).filter(db.User.flags!=1)
 	return flask.render_template('admins.html', admins=admins, non_admins=non_admins)
 
-@admin_route
 @app.route('/admins/add/<id>')
+@admin_route
 def admins_add(id):
 	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 1})
 	db.session.commit()
 	return flask.redirect(flask.url_for('admins'))
 
-@admin_route
 @app.route('/admins/remove/<id>')
+@admin_route
 def admins_remove(id):
 	db.session.query(db.User).filter(db.User.id==int(id)).update({'flags': 0})
 	db.session.commit()
 	return flask.redirect(flask.url_for('admins'))
 
-@admin_route
 @app.route('/groups', methods=['GET', 'POST'])
+@admin_route
 def groups():
 	if request.method == 'GET':
 		entities = db.session.query(db.Entity)
@@ -198,8 +198,8 @@ def groups():
 		db.session.commit()
 		return flask.redirect(flask.url_for('groups'))
 
-@admin_route
 @app.route('/contacts', methods=['GET', 'POST'])
+@admin_route
 def contacts():
 	if request.method == 'GET':
 		contact_list = db.session.query(db.Contact)
