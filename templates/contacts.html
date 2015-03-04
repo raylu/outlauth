@@ -11,8 +11,8 @@
 		{% for contact in contacts %}
 			<tr>
 				<td>{{contact.name}}:</td>
-				<td> {{contact.standing}}</td>
-				<td> <textarea name={{contact.id}} rows="3" cols="50">{{contact.comments}}</textarea></td>
+				<td>{{contact.standing}}</td>
+				<td><textarea name={{contact.id}} rows="3" cols="50">{{contact.comments}}</textarea></td>
 			</tr>
 		{% endfor %}
 

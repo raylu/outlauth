@@ -195,7 +195,7 @@ def groups():
 def contacts():
 	if request.method == 'GET':
 		contact_list = db.session.query(db.Contact)
-		return flask.render_template('contacts.html', user=user, contacts=contact_list)
+		return flask.render_template('contacts.html', contacts=contact_list)
 	elif request.method == 'POST':
 		save_contacts(request.form)
 		return flask.redirect(flask.url_for('contacts'))
