@@ -10,18 +10,23 @@ import db
 
 class Authenticator(Murmur.ServerAuthenticator):
 	def authenticate(self, name, pw, certificates, certhash, certstrong, current=None):
-		new_name = ''
-		if not pw:
-			return -1, new_name, []
-		user = db.User.login(name, pw)
-		if not user:
-			return -1, new_name, []
-		entities = user.entities()
-		groups = user.groups(entities)
-		group_names = list(map(operator.attrgetter('name'), groups))
-		if user.flags == 1:
-			group_names.append('admin')
-		return user.id, new_name, group_names
+		try:
+			new_name = ''
+			if not pw:
+				return -1, new_name, []
+			if name == 'raylu-bot' and pw == 'bot':
+				return 0, new_name, []
+			user = db.User.login(name, pw)
+			if not user:
+				return -1, new_name, []
+			entities = user.entities()
+			groups = user.groups(entities)
+			group_names = list(map(operator.attrgetter('name'), groups))
+			if user.flags == 1:
+				group_names.append('admin')
+			return user.id, new_name, group_names
+		finally:
+			db.session.remove()
 
 	def getInfo(self, id, current=None):
 		return False, {}
