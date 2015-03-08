@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import operator
+import random
 
 import Ice
 Ice.loadSlice('-I/usr/share/Ice/slice', ['/usr/share/slice/Murmur.ice'])
 import Murmur
+from sqlalchemy.orm.exc import NoResultFound
 
 import db
 
@@ -12,19 +14,25 @@ class Authenticator(Murmur.ServerAuthenticator):
 	def authenticate(self, name, pw, certificates, certhash, certstrong, current=None):
 		try:
 			new_name = ''
-			if not pw:
-				return -1, new_name, []
+
 			if name == 'raylu-bot' and pw == 'bot':
 				return 0, new_name, []
+
+			try:
+				db.session.query(db.User).filter(db.User.username==name).one()
+			except NoResultFound:
+				return random.randint(1000000000, 2147483647), new_name, [] # guest
+
 			user = db.User.login(name, pw)
 			if not user:
-				return -1, new_name, []
+				return -1, new_name, [] # bad password for registered user
+
 			entities = user.entities()
 			groups = user.groups(entities)
 			group_names = list(map(operator.attrgetter('name'), groups))
 			if user.flags == 1:
 				group_names.append('admin')
-			return user.id, new_name, group_names
+			return user.id, new_name, group_names # regular login
 		finally:
 			db.session.remove()
 
