@@ -15,6 +15,7 @@
 			</div>
 			<div class="nav">
 				{% if session['user_id'] %}
+					<a href="/account">account</a>
 					<a href="/logout">logout</a>
 				{% else %}
 					<a href="/login">login</a>

@@ -128,13 +128,28 @@ def login():
 	if request.method == 'GET':
 		return flask.render_template('login.html')
 	else:
-		user =  db.User.login(request.form['username'], request.form['password'])
+		user = db.User.login(request.form['username'], request.form['password'])
 		if user:
 			session['user_id'] = user.id
 			return flask.redirect(flask.url_for('home'))
 		else:
 			flask.flash('Invalid username/password combination.')
 			return flask.redirect(flask.url_for('login'))
+
+@app.route('/account', methods=['GET', 'POST'])
+def account():
+	user = get_current_user()
+	if not user:
+		return flask.redirect(flask.url_for('login'))
+
+	if request.method == 'GET':
+		return flask.render_template('account.html', user=user)
+	else:
+		user.username = request.form['username']
+		if request.form['password']:
+			user.password, user.salt = db.User.hash_pw(request.form['password'])
+		db.session.commit()
+		return flask.redirect(flask.url_for('account'))
 
 @app.route('/logout')
 def logout():
