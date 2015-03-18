@@ -21,6 +21,7 @@ class Authenticator(Murmur.ServerAuthenticator):
 			try:
 				db.session.query(db.User).filter(db.User.username==name).one()
 			except NoResultFound:
+				new_name = '[G] ' + name
 				return random.randint(1000000000, 2147483647), new_name, [] # guest
 
 			user = db.User.login(name, pw)
