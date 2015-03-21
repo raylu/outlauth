@@ -16,7 +16,7 @@ class Authenticator(Murmur.ServerAuthenticator):
 			new_name = ''
 
 			if name == 'raylu-bot' and pw == 'bot':
-				return 0, new_name, []
+				return 999999999, new_name, ['grim sleepers']
 
 			try:
 				db.session.query(db.User).filter(db.User.username==name).one()
