@@ -161,13 +161,13 @@ def logout():
 
 def admin_route(route): # decorator
 	@wraps(route)
-	def wrapped():
+	def wrapped(*args, **kwargs):
 		if 'user_id' not in session:
 			return flask.redirect(flask.url_for('login'))
 		user = get_current_user()
 		if user.flags != 1:
 			flask.abort(403)
-		return route()
+		return route(*args, **kwargs)
 	return wrapped
 
 @app.route('/admins')
