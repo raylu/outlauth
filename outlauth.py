@@ -18,6 +18,7 @@ import sqlalchemy.exc
 import ccp_pls
 import config
 import db
+import update_entities
 
 app = flask.Flask(__name__)
 app.secret_key = config.secret_key
@@ -42,8 +43,10 @@ def register():
 		# step 1
 		return flask.render_template('register.html')
 	else:
-		key_info = check_api_key(request.form['key_id'], request.form['vcode'])
-		if not key_info:
+		try:
+			key_info = update_entities.check_api_key(request.form['key_id'], request.form['vcode'])
+		except InvalidAPI as e:
+			flask.flash(e.message)
 			return flask.redirect(flask.url_for('register'))
 		char_id = request.form.get('character_id')
 		username = request.form.get('username')
@@ -67,8 +70,7 @@ def register():
 			char_id = int(char_id)
 			for char in key_info['characters']:
 				if char['character_id'] == char_id:
-					update_db_for_char(char)
-					db.session.commit()
+					update_entities.update_for_char(char)
 					break
 			else:
 				flask.abort(400)
@@ -90,38 +92,6 @@ def register():
 			session.permanent = True
 			session['user_id'] = user.id
 			return flask.redirect(flask.url_for('home'))
-
-def check_api_key(key_id, vcode):
-	key_info = ccp_pls.key_info(key_id, vcode)
-
-	error = None
-	if not key_info:
-		error = 'API key ID and vCode combination were not valid.'
-	else:
-		if key_info['type'] != 'Account':
-			error = 'API key must be account-wide, not character-specific.'
-		if key_info['accessmask'] & 65405275 != 65405275:
-			error = 'API key has insufficient permissions. Please use the create link.'
-
-	if error:
-		flask.flash(error)
-	else:
-		return key_info
-
-def update_db_for_char(char):
-	if char['alliance_id']:
-		db.session.merge(db.Entity(
-			id=char['alliance_id'], type='alliance', name=char['alliance_name']))
-
-	corporation = db.Entity(
-		id=char['corporation_id'], type='corporation', name=char['corporation_name'])
-	if char['alliance_id']:
-		corporation.parent_id = char['alliance_id']
-	db.session.merge(corporation)
-
-	db.session.merge(db.Entity(
-		id=char['character_id'], type='character',
-		name=char['character_name'], parent_id=char['corporation_id']))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
