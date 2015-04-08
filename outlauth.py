@@ -118,6 +118,8 @@ def account():
 		user.username = request.form['username']
 		if request.form['password']:
 			user.password, user.salt = db.User.hash_pw(request.form['password'])
+		user.apikey_id = int(request.form['apikey_id'])
+		user.apikey_vcode = request.form['apikey_vcode']
 		db.session.commit()
 		return flask.redirect(flask.url_for('account'))
 
