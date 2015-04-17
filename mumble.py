@@ -6,8 +6,10 @@ import random
 import Ice
 Ice.loadSlice('-I/usr/share/Ice/slice', ['/usr/share/slice/Murmur.ice'])
 import Murmur
+import raven
 from sqlalchemy.orm.exc import NoResultFound
 
+import config
 import db
 
 class Authenticator(Murmur.ServerAuthenticator):
@@ -33,6 +35,10 @@ class Authenticator(Murmur.ServerAuthenticator):
 			if user.flags == 1:
 				group_names.append('admin')
 			return user.id, new_name, group_names # regular login
+		except:
+			if config.sentry_dsn:
+				client = raven.Client(config.sentry_dsn)
+				client.captureException(extra={'name': name})
 		finally:
 			db.session.remove()
 

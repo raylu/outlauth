@@ -5,6 +5,8 @@ debug = True
 
 irc_host = ''
 
+sentry_dsn = None
+
 database = 'outlauth'
 db_user = 'outlauth'
 
