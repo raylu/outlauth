@@ -14,9 +14,8 @@ import db
 
 class Authenticator(Murmur.ServerAuthenticator):
 	def authenticate(self, name, pw, certificates, certhash, certstrong, current=None):
+		new_name = ''
 		try:
-			new_name = ''
-
 			if name == 'raylu-bot' and pw == 'bot':
 				return 999999999, new_name, ['grim sleepers']
 
@@ -39,6 +38,10 @@ class Authenticator(Murmur.ServerAuthenticator):
 			if config.sentry_dsn:
 				client = raven.Client(config.sentry_dsn)
 				client.captureException(extra={'name': name})
+			for user_id in server.getRegisteredUsers(name):
+				print('unregistering', user_id)
+				server.unregisterUser(user_id)
+			return -2, new_name, []
 		finally:
 			db.session.remove()
 
